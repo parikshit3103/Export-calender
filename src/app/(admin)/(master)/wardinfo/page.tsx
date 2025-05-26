@@ -1,9 +1,9 @@
 import React from 'react'
 
-const KnowYourMember = () => {
+const Wardinfo= () => {
   return (
     <div>page</div>
   )
 }
 
-export default KnowYourMember
+export default Wardinfo

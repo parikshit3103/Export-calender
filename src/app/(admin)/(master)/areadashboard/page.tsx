@@ -1,9 +1,9 @@
 import React from 'react'
 
-const KnowYourArea = () => {
+const areadashboard = () => {
   return (
     <div>page</div>
   )
 }
 
-export default KnowYourArea ;
+export default areadashboard ;

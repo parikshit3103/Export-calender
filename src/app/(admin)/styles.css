@@ -1,0 +1,45 @@
+/* Fade Up Animation */
+@keyframes fadeUp {
+  0% {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Animation class */
+.fade-up {
+  animation-name: fadeUp;
+  animation-duration: 1s;
+  animation-timing-function: ease-in-out;
+  animation-fill-mode: forwards; /* Keeps the final state */
+  animation-iteration-count: 1; /* Play once */
+}
+
+.custom-scroll-table::-webkit-scrollbar {
+  height: 8px; /* horizontal scrollbar height */
+}
+
+.custom-scroll-table::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 10px;
+}
+
+.custom-scroll-table::-webkit-scrollbar-thumb {
+  background-color: #c4c4c4;
+  border-radius: 10px;
+  border: 2px solid #f1f1f1; /* Optional: spacing effect */
+}
+
+.custom-scroll-table::-webkit-scrollbar-thumb:hover {
+  background: #a0a0a0;
+}
+
+/* Firefox support */
+.custom-scroll-table {
+  scrollbar-width: thin;
+  scrollbar-color: #c4c4c4 #f1f1f1;
+}

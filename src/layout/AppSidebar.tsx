@@ -33,20 +33,20 @@ const navItems: NavItem[] = [
     name: "Dashboard",
     path: "/dashboard" } ,
   {
-    name: "Complaint Topic",
-    path: "/complainttopic" } ,
+    name: "Complaint Template",
+    path: "/complainttemplate" } ,
   {
-    name: "Area Info",
-    path: "/areainfo" } ,
+    name: "Ward Info",
+    path: "/wardinfo" } ,
   {
     name: "Member Info",
     path: "/memberinfo" } ,
   {
-    name: "Know Your Member",
-    path: "/knowyourmember" } ,
+    name: "Member Dashboard",
+    path: "/memberdashboard" } ,
   {
-    name: "Know Your Area",
-    path: "/knowyourarea" } ,
+    name: "Area Dashboard",
+    path: "/areadashboard" } ,
   {
     name: "News And Ads",
     path: "/newsandads" } ,
@@ -285,12 +285,12 @@ const AppSidebar: React.FC = () => {
           !isExpanded && !isHovered ? "lg:justify-center" : "justify-start"
         }`}
       >
-        {/* <Link href="/">
+        <Link href="/">
           {isExpanded || isHovered || isMobileOpen ? (
             <>
               <Image
                 className="dark:hidden"
-                src="/images/logo/logo.svg"
+                src="/images/logo/vmccplogo.png"
                 alt="Logo"
                 width={150}
                 height={40}
@@ -311,7 +311,7 @@ const AppSidebar: React.FC = () => {
               height={32}
             />
           )}
-        </Link> */}
+        </Link>
       </div>
       <div className="flex flex-col overflow-y-auto duration-300 ease-linear no-scrollbar">
         <nav className="mb-6">

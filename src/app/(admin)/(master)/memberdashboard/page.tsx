@@ -1,9 +1,9 @@
 import React from 'react'
 
-const AreaInfo = () => {
+const memberdashboard = () => {
   return (
     <div>page</div>
   )
 }
 
-export default AreaInfo
+export default memberdashboard

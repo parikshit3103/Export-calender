@@ -37,7 +37,7 @@ const ComplaintTemplate: React.FC = () => {
     try {
       const templatesRef = ref(db, 'complaintTemplates');
       const snapshot = await get(templatesRef);
-      
+
       if (snapshot.exists()) {
         const data = snapshot.val();
         const templatesArray = Object.keys(data).map(key => ({
@@ -45,10 +45,17 @@ const ComplaintTemplate: React.FC = () => {
           ...data[key]
         }));
 
-        const startIndex = (page - 1) * itemsPerPage;
-        const endIndex = startIndex + itemsPerPage;
-        
-        setTemplates(templatesArray.slice(startIndex, endIndex));
+        // Sort templates by ID in descending order to get the latest entry first
+        const sortedTemplates = templatesArray.sort((a, b) => (b.id || '').localeCompare(a.id || ''));
+
+        // Ensure the latest entry is always at the top of the first page
+        const latestEntry = sortedTemplates[0];
+        const paginatedData = sortedTemplates.slice((page - 1) * itemsPerPage, page * itemsPerPage);
+
+        // Add the latest entry to the top of the paginated data if it's not already included
+        const finalData = page === 1 && latestEntry ? [latestEntry, ...paginatedData.filter(item => item.id !== latestEntry.id)] : paginatedData;
+
+        setTemplates(finalData);
         setPagination({
           currentPage: page,
           totalPages: Math.ceil(templatesArray.length / itemsPerPage),

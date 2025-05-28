@@ -37,7 +37,7 @@ const WardInfo: React.FC = () => {
     try {
       const wardsRef = ref(db, 'wardInfo');
       const snapshot = await get(wardsRef);
-      
+
       if (snapshot.exists()) {
         const data = snapshot.val();
         const wardsArray = Object.keys(data).map(key => ({
@@ -45,10 +45,17 @@ const WardInfo: React.FC = () => {
           ...data[key]
         }));
 
-        const startIndex = (page - 1) * itemsPerPage;
-        const endIndex = startIndex + itemsPerPage;
-        
-        setWards(wardsArray.slice(startIndex, endIndex));
+        // Sort wards by ID in descending order to get the latest entry first
+        const sortedWards = wardsArray.sort((a, b) => (b.id || '').localeCompare(a.id || ''));
+
+        // Ensure the latest entry is always at the top of the first page
+        const latestEntry = sortedWards[0];
+        const paginatedData = sortedWards.slice((page - 1) * itemsPerPage, page * itemsPerPage);
+
+        // Add the latest entry to the top of the paginated data if it's not already included
+        const finalData = page === 1 && latestEntry ? [latestEntry, ...paginatedData.filter(item => item.id !== latestEntry.id)] : paginatedData;
+
+        setWards(finalData);
         setPagination({
           currentPage: page,
           totalPages: Math.ceil(wardsArray.length / itemsPerPage),
@@ -125,6 +132,14 @@ const WardInfo: React.FC = () => {
     setIsSubmitting(true);
 
     try {
+      // Check uniqueness for Add and Update actions
+      const isUnique = isWardUnique(formData.wardName, formData.wardNumber, formData.id);
+      if (!isUnique) {
+        toast.error('Ward name or number must be unique');
+        setIsSubmitting(false);
+        return;
+      }
+
       switch (formAction) {
         case 'Add':
           await push(ref(db, 'wardInfo'), formData);
@@ -133,13 +148,13 @@ const WardInfo: React.FC = () => {
         case 'Update':
           if (formData.id) {
             await update(ref(db, `wardInfo/${formData.id}`), formData);
-            toast.success(`"${formData.wardName}" updated successfully`);
+            toast.success(`Ward "${formData.wardName}" updated successfully`);
           }
           break;
         case 'Delete':
           if (deleteId) {
             await remove(ref(db, `wardInfo/${deleteId}`));
-            toast.success(`"${formData.wardName}" deleted successfully`);
+            toast.success(`Ward "${formData.wardName}" deleted successfully`);
           }
           break;
       }

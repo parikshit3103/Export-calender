@@ -25,6 +25,7 @@ type FormSideBarProps = {
     errors: {
         [key: string]: string;
     };
+    disabledFields : any ;
     
 };
 
@@ -37,10 +38,11 @@ const FormSideBar: React.FC<FormSideBarProps> = ({
   formFields,
   handleChange,
   formData,
-  errors
+  errors ,
+  disabledFields
 }) => {
-  const isDeleteAction = ['Delete Country', 'Delete State', 'Delete City', 'Delete Pincode', 'Delete Company', 'Delete Bank', 'Delete Details' , 'Delete Employee'].includes(toggleText);
-
+  const isDeleteAction = ['Delete Country', 'Delete State', 'Delete City', 'Delete Pincode', 'Delete Company', 'Delete Bank', 'Delete Details' , 'Delete Employee', "Delete Member"].includes(toggleText);
+ 
   // 👇 State to preview image
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -103,13 +105,24 @@ const FormSideBar: React.FC<FormSideBarProps> = ({
 
         <h3 className="text-lg font-semibold mb-4 text-black">{toggleText}</h3>
         <form onSubmit={handleSubmit} className="flex flex-col gap-3 space-y-3">
-          {formFields.map((field, index) => (
+          {formFields.map((field, index) => {
+           const shouldDisable = (
+    formData.role === 'Admin' &&
+    (field.name === 'wardNo' || field.name === 'wardName')
+  );
+            return (
             <div className="mb-2" key={index}>
               {field.type !== 'checkbox' && (
-                <label htmlFor={field.name} className={`block font-medium mb-1 ${field.label.includes('*') ? 'text-red-500' : 'text-black'}`}>
-                  {field.label}
-                </label>
-              )}
+  <label htmlFor={field.name} className="block font-medium mb-1 text-black">
+    {field.label.split('*').map((part, index, arr) => (
+      <span key={index}>
+        {part}
+        {index < arr.length - 1 && <span className="text-red-500">*</span>}
+      </span>
+    ))}
+  </label>
+)}
+
 
               {field.type === 'select' ? (
                 <select
@@ -117,9 +130,9 @@ const FormSideBar: React.FC<FormSideBarProps> = ({
                   name={field.name}
                   value={formData[field.name]}
                   onChange={handleChange}
-                  className={`block border p-2 w-full ${isDeleteAction ? 'bg-gray-300 cursor-not-allowed' : ''}`}
+                  className={`block border p-2 w-full ${isDeleteAction || shouldDisable ? 'bg-gray-300 cursor-not-allowed' : ''}`}
                   required={field.required}
-                  disabled={isDeleteAction}
+                  disabled={shouldDisable || isDeleteAction}
                 >
                   <option value="" disabled hidden>Select An Option</option>
                   {field.options?.map((option, idx) => (
@@ -138,7 +151,7 @@ const FormSideBar: React.FC<FormSideBarProps> = ({
                     checked={formData[field.name]}
                     onChange={handleChange}
                     className={`block border p-2 w-full ${isDeleteAction ? 'bg-gray-300 cursor-not-allowed' : ''}`}
-                    disabled={isDeleteAction}
+                    disabled={isDisabled}
                   />
                 </div>
               ) : field.type === 'file' ? (
@@ -186,23 +199,35 @@ const FormSideBar: React.FC<FormSideBarProps> = ({
                  <div className="mb-2" key={index}>
                  {field.component}
                   </div>
-              ) :  (
-                <input
-                  id={field.name}
-                  name={field.name}
-                  type={field.type}
-                  value={formData[field.name]}
-                  onChange={handleChange}
-                  placeholder={field.placeholder}
-                  className={`block border p-3 w-full ${isDeleteAction ? 'bg-gray-300 cursor-not-allowed' : ''}`}
-                  required={field.required}
-                  disabled={isDeleteAction}
-                />
+              ) : field.type === 'message' ? (
+  <textarea
+    id={field.name}
+    name={field.name}
+    value={formData[field.name]}
+    onChange={handleChange}
+    placeholder={field.placeholder}
+    rows={5}
+    className={`block border p-3 w-full resize-none ${isDeleteAction ? 'bg-gray-300 cursor-not-allowed' : ''}`}
+    required={field.required}
+    disabled={isDeleteAction}
+  />
+) : (
+  <input
+    id={field.name}
+    name={field.name}
+    type={field.type}
+    value={formData[field.name]}
+    onChange={handleChange}
+    placeholder={field.placeholder}
+    className={`block border p-3 w-full ${isDeleteAction ? 'bg-gray-300 cursor-not-allowed' : ''}`}
+    required={field.required}
+    disabled={isDeleteAction}
+  />
               )}
 
               {errors[field.name] && <span className="text-red-500 text-sm">{errors[field.name]}</span>}
-            </div>
-          ))}
+            </div>)
+})}
 
           <button
             type="submit"

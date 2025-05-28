@@ -39,11 +39,15 @@ const navItems: NavItem[] = [
     name: "Ward Info",
     path: "/wardinfo" } ,
   {
+    name: "Ward Dashboard",
+    path: "/wardashboard" } ,
+  {
+    name: "Member Login",
+    path: "/memberlogin" } ,
+  {
     name: "Member Info",
     path: "/memberinfo" } ,
-  {
-    name: "Member Dashboard",
-    path: "/memberdashboard" } ,
+
   {
     name: "Area Dashboard",
     path: "/areadashboard" } ,

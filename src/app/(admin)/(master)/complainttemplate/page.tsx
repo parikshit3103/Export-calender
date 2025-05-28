@@ -1,4 +1,3 @@
-// File: ComplaintTemplate.tsx
 "use client";
 import React, { useEffect, useState } from 'react';
 import { Pencil, Trash2, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, X } from 'lucide-react';
@@ -13,14 +12,17 @@ interface ComplaintTemplate {
   description: string;
 }
 
+const ITEMS_PER_PAGE_OPTIONS = [5, 10] as const;
+
 const ComplaintTemplate: React.FC = () => {
+  // State management
   const [templates, setTemplates] = useState<ComplaintTemplate[]>([]);
   const [formData, setFormData] = useState<ComplaintTemplate>({ 
     complaint: '', 
     description: '' 
   });
-  const [toggleAddTemplate, setToggleAddTemplate] = useState(false);
-  const [toggleText, setToggleText] = useState('Add Complaint'); // Changed from "Add Template" to "Add Complaint"
+  const [isFormOpen, setIsFormOpen] = useState(false);
+  const [formAction, setFormAction] = useState<'Add' | 'Update' | 'Delete'>('Add');
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [pagination, setPagination] = useState({
     currentPage: 1,
@@ -28,8 +30,9 @@ const ComplaintTemplate: React.FC = () => {
     totalItems: 0,
     limit: 10
   });
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Function to fetch templates from Firebase
+  // Data fetching
   const fetchTemplates = async (page: number = 1, itemsPerPage: number = pagination.limit) => {
     try {
       const templatesRef = ref(db, 'complaintTemplates');
@@ -37,17 +40,15 @@ const ComplaintTemplate: React.FC = () => {
       
       if (snapshot.exists()) {
         const data = snapshot.val();
-        const templatesArray: ComplaintTemplate[] = Object.keys(data).map(key => ({
+        const templatesArray = Object.keys(data).map(key => ({
           id: key,
           ...data[key]
         }));
 
-        // Implement client-side pagination
         const startIndex = (page - 1) * itemsPerPage;
         const endIndex = startIndex + itemsPerPage;
-        const paginatedData = templatesArray.slice(startIndex, endIndex);
         
-        setTemplates(paginatedData);
+        setTemplates(templatesArray.slice(startIndex, endIndex));
         setPagination({
           currentPage: page,
           totalPages: Math.ceil(templatesArray.length / itemsPerPage),
@@ -56,12 +57,7 @@ const ComplaintTemplate: React.FC = () => {
         });
       } else {
         setTemplates([]);
-        setPagination({
-          currentPage: 1,
-          totalPages: 1,
-          totalItems: 0,
-          limit: itemsPerPage
-        });
+        resetPagination(itemsPerPage);
       }
     } catch (err) {
       console.error('Failed to fetch templates:', err);
@@ -69,22 +65,29 @@ const ComplaintTemplate: React.FC = () => {
     }
   };
 
-  // Fetch templates on component mount
+  const resetPagination = (itemsPerPage: number = 10) => {
+    setPagination({
+      currentPage: 1,
+      totalPages: 1,
+      totalItems: 0,
+      limit: itemsPerPage
+    });
+  };
+
+  // Effects
   useEffect(() => {
     fetchTemplates();
     
-    // Set up realtime listener
     const templatesRef = ref(db, 'complaintTemplates');
     const unsubscribe = onValue(templatesRef, (snapshot) => {
       if (snapshot.exists()) {
         const data = snapshot.val();
-        const templatesArray: ComplaintTemplate[] = Object.keys(data).map(key => ({
+        const templatesArray = Object.keys(data).map(key => ({
           id: key,
           ...data[key]
         }));
-        // Update the list without changing pagination
+        
         setTemplates(prev => {
-          // Keep current pagination state
           const startIndex = (pagination.currentPage - 1) * pagination.limit;
           const endIndex = startIndex + pagination.limit;
           return templatesArray.slice(startIndex, endIndex);
@@ -97,78 +100,83 @@ const ComplaintTemplate: React.FC = () => {
     return () => unsubscribe();
   }, []);
 
+  // Form handlers
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     
     if (name === 'complaint') {
-      // Validation for complaint field
       const isValid = /^[a-zA-Z0-9 ]*$/.test(value);
       const noLeadingSpace = !/^\s/.test(value);
 
       if (isValid && noLeadingSpace) {
-        setFormData({ ...formData, [name]: value });
+        setFormData(prev => ({ ...prev, [name]: value }));
       }
     } else {
-      // No validation for description field
-      setFormData({ ...formData, [name]: value });
+      setFormData(prev => ({ ...prev, [name]: value }));
     }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setIsSubmitting(true);
 
     try {
-      if (toggleText === "Add Complaint") { // Changed from "Add Template" to "Add Complaint"
-        // Add new template
-        const newTemplateRef = await push(ref(db, 'complaintTemplates'), formData);
-        toast.success(`Complaint "${formData.complaint}" added successfully`);
-      } 
-      else if (toggleText === "Update Template" && formData.id) {
-        // Update existing template
-        await update(ref(db, `complaintTemplates/${formData.id}`), formData);
-        toast.success(`"${formData.complaint}" updated successfully`);
-      } 
-      else if (toggleText === "Delete Template" && deleteId) {
-        // Delete template
-        await remove(ref(db, `complaintTemplates/${deleteId}`));
-        toast.success(` "${formData.complaint}" deleted successfully`);
+      switch (formAction) {
+        case 'Add':
+          await push(ref(db, 'complaintTemplates'), formData);
+          toast.success(`Complaint "${formData.complaint}" added successfully`);
+          break;
+        case 'Update':
+          if (formData.id) {
+            await update(ref(db, `complaintTemplates/${formData.id}`), formData);
+            toast.success(`"${formData.complaint}" updated successfully`);
+          }
+          break;
+        case 'Delete':
+          if (deleteId) {
+            await remove(ref(db, `complaintTemplates/${deleteId}`));
+            toast.success(`"${formData.complaint}" deleted successfully`);
+          }
+          break;
       }
 
-      setFormData({ complaint: '', description: '' });
-      setToggleAddTemplate(false);
-      setToggleText('Add Complaint'); // Changed from "Add Template" to "Add Complaint"
+      resetForm();
       fetchTemplates(pagination.currentPage, pagination.limit);
     } catch (err) {
       console.error('Operation failed:', err);
-      toast.error(`Failed to ${toggleText.toLowerCase()} complaint "${formData.complaint}"`);
+      toast.error(`Failed to ${formAction.toLowerCase()} complaint`);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
+  const resetForm = () => {
+    setFormData({ complaint: '', description: '' });
+    setIsFormOpen(false);
+    setFormAction('Add');
+  };
+
+  // Template actions
   const handleEdit = (template: ComplaintTemplate) => {
     setFormData(template);
-    setToggleText('Update Template');
-    setToggleAddTemplate(true);
+    setFormAction('Update');
+    setIsFormOpen(true);
   };
 
   const handleDelete = (template: ComplaintTemplate) => {
     setFormData(template);
     setDeleteId(template.id || null);
-    setToggleText("Delete Template");
-    setToggleAddTemplate(true);
+    setFormAction('Delete');
+    setIsFormOpen(true);
   };
 
-  const showForm = () => {
-    setToggleAddTemplate(!toggleAddTemplate);
-    setToggleText("Add Complaint"); // Changed from "Add Template" to "Add Complaint"
+  const toggleForm = () => {
+    setIsFormOpen(!isFormOpen);
+    setFormAction('Add');
     setFormData({ complaint: '', description: '' });
   };
 
-  const closeForm = () => {
-    setToggleAddTemplate(false);
-    setToggleText("Add Complaint"); // Changed from "Add Template" to "Add Complaint"
-    setFormData({ complaint: '', description: '' });
-  };
-
+  // Pagination
   const goToPage = (page: number) => {
     if (page >= 1 && page <= pagination.totalPages) {
       fetchTemplates(page, pagination.limit);
@@ -181,9 +189,11 @@ const ComplaintTemplate: React.FC = () => {
     fetchTemplates(1, newLimit);
   };
 
+  // Utility functions
   const isTemplateUnique = (complaint: string, id?: string) => {
     return !templates.some(template => 
-      template.complaint.toLowerCase() === complaint.toLowerCase() && template.id !== id
+      template.complaint.toLowerCase() === complaint.toLowerCase() && 
+      template.id !== id
     );
   };
 
@@ -195,15 +205,20 @@ const ComplaintTemplate: React.FC = () => {
 
   const { start, end } = calculateShowingRange();
 
+  // Derived values
+  const formTitle = `${formAction} Complaint${formAction === 'Add' ? '' : ' Template'}`;
+  const isUnique = formData.complaint && isTemplateUnique(formData.complaint, formData.id);
+  const showUniquenessError = formData.complaint && !isUnique && formAction === 'Add' && !isSubmitting;
+
   return (
     <div className="p-4 relative">
-      <div className={`flex-grow transition-all duration-500 ${toggleAddTemplate ? 'mr-[25%]' : ''}`}>
+      <div className={`flex-grow transition-all duration-500 ${isFormOpen ? 'mr-[25%]' : ''}`}>
         <div className="flex items-center justify-left mb-4 gap-2">
           <h2 className="text-xl font-bold">Complaint Templates</h2>
           <img
-            onClick={showForm}
+            onClick={toggleForm}
             className={`w-[25px] h-[25px] object-contain transition-transform duration-300 cursor-pointer ${
-              toggleAddTemplate ? 'rotate-90' : 'rotate-0'
+              isFormOpen ? 'rotate-90' : 'rotate-0'
             }`}
             src="/images/icons/addtwo.svg"
             alt="Add Template"
@@ -220,7 +235,7 @@ const ComplaintTemplate: React.FC = () => {
                 onChange={handleLimitChange}
                 className="border p-1 rounded text-sm"
               >
-                {[5, 10].map(num => (
+                {ITEMS_PER_PAGE_OPTIONS.map(num => (
                   <option key={num} value={num}>{num}</option>
                 ))}
               </select>
@@ -237,10 +252,10 @@ const ComplaintTemplate: React.FC = () => {
             </thead>
             <tbody>
               {templates
-                .slice() // Create a copy of the array
-                .sort((a, b) => (b.id || '').localeCompare(a.id || '')) // Sort by id in descending order
-                .map((template, index) => (
-                  <tr key={template.id || index}>
+                .slice()
+                .sort((a, b) => (b.id || '').localeCompare(a.id || ''))
+                .map((template) => (
+                  <tr key={template.id}>
                     <td className="border p-2">{template.complaint}</td>
                     <td className="border p-2 max-w-xs truncate">{template.description}</td>
                     <td className="border p-2">
@@ -341,18 +356,18 @@ const ComplaintTemplate: React.FC = () => {
       
       {/* Form for adding/updating/deleting template */}
       <div className={`fixed top-0 right-0 h-full w-[20%] bg-white border-l-2 py-28 border-gray-200 transform transition-transform duration-500 ease-in-out ${
-        toggleAddTemplate ? 'translate-x-0' : 'translate-x-full'
+        isFormOpen ? 'translate-x-0' : 'translate-x-full'
       }`}>
         <div className="p-4 relative">
           <button 
-            onClick={closeForm}
+            onClick={resetForm}
             className="absolute top-4 right-4 text-black hover:text-gray-700"
             aria-label="Close form"
           >
             <X size={20} />
           </button>
           
-          <h3 className="text-lg font-semibold mb-4 text-black">{toggleText}</h3>
+          <h3 className="text-lg font-semibold mb-4 text-black">{formTitle}</h3>
           <form onSubmit={handleSubmit} className="space-y-3">
             <div className="mb-2">
               <label htmlFor="complaint" className="block font-medium mb-1 text-black">
@@ -365,14 +380,12 @@ const ComplaintTemplate: React.FC = () => {
                 value={formData.complaint}
                 onChange={handleChange}
                 className={`block border p-2 w-full ${
-                  formData.complaint && !isTemplateUnique(formData.complaint, formData.id)
-                    ? 'border-red-500' 
-                    : ''
+                  showUniquenessError ? 'border-red-500' : ''
                 }`}
-                required={toggleText !== 'Delete Template'}
-                readOnly={toggleText === 'Delete Template'}
+                required={formAction !== 'Delete'}
+                readOnly={formAction === 'Delete'}
               />
-              {formData.complaint && !isTemplateUnique(formData.complaint, formData.id) && (
+              {showUniquenessError && (
                 <p className="text-red-500 text-sm mt-1">Complaint must be unique</p>
               )}
             </div>
@@ -389,25 +402,25 @@ const ComplaintTemplate: React.FC = () => {
                 onChange={handleChange}
                 className="block border p-2 w-full h-24"
                 required={false}
-                readOnly={toggleText === 'Delete Template'}
+                readOnly={formAction === 'Delete'}
               />
             </div>
 
             <button
               type="submit"
               className={`${
-                toggleText === 'Delete Template'
+                formAction === 'Delete'
                   ? 'bg-red-600 hover:bg-red-700'
-                  : formData.complaint && isTemplateUnique(formData.complaint, formData.id)
+                  : formData.complaint && (formAction === 'Update' || isUnique)
                     ? 'bg-blue-600 hover:bg-blue-700'
                     : 'bg-gray-300 cursor-not-allowed'
               } text-white px-4 py-2 rounded w-full transition-colors`}
               disabled={
-                toggleText !== 'Delete Template' &&
-                (!formData.complaint || !isTemplateUnique(formData.complaint, formData.id))
+                (formAction !== 'Delete' && !formData.complaint) ||
+                (formAction === 'Add' && !isUnique)
               }
             >
-              {toggleText}
+              {formAction}
             </button>
           </form>
         </div>

@@ -1,22 +1,28 @@
-// File: WardInfo.tsx
 "use client";
 import React, { useEffect, useState } from 'react';
 import { Pencil, Trash2, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, X } from 'lucide-react';
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import { db } from '@/lib/firebase';
-import { ref, onValue, push, remove, get } from 'firebase/database';
+import { ref, onValue, push, update, remove, get } from 'firebase/database';
 
-interface Ward {
+interface WardInfo {
   id?: string;
-  name: string;
+  wardName: string;
+  wardNumber: string;
 }
 
+const ITEMS_PER_PAGE_OPTIONS = [5, 10] as const;
+
 const WardInfo: React.FC = () => {
-  const [wards, setWards] = useState<Ward[]>([]);
-  const [allWards, setAllWards] = useState<Ward[]>([]); // Add this line to store all wards
-  const [formData, setFormData] = useState<Ward>({ name: '' });
-  const [toggleAddWard, setToggleAddWard] = useState(false);
+  // State management
+  const [wards, setWards] = useState<WardInfo[]>([]);
+  const [formData, setFormData] = useState<WardInfo>({ 
+    wardName: '', 
+    wardNumber: '' 
+  });
+  const [isFormOpen, setIsFormOpen] = useState(false);
+  const [formAction, setFormAction] = useState<'Add' | 'Update' | 'Delete'>('Add');
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [pagination, setPagination] = useState({
     currentPage: 1,
@@ -24,34 +30,25 @@ const WardInfo: React.FC = () => {
     totalItems: 0,
     limit: 10
   });
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Function to fetch wards from Firebase
+  // Data fetching
   const fetchWards = async (page: number = 1, itemsPerPage: number = pagination.limit) => {
     try {
-      const wardsRef = ref(db, 'wards');
+      const wardsRef = ref(db, 'wardInfo');
       const snapshot = await get(wardsRef);
-
+      
       if (snapshot.exists()) {
         const data = snapshot.val();
-        let wardsArray: Ward[] = Object.keys(data).map(key => ({
+        const wardsArray = Object.keys(data).map(key => ({
           id: key,
           ...data[key]
         }));
 
-        // Sort wards by ID in descending order (newest first)
-        wardsArray = wardsArray.sort((a, b) => {
-          if (!a.id || !b.id) return 0;
-          return b.id.localeCompare(a.id);
-        });
-
-        setAllWards(wardsArray); // Store all wards for uniqueness check
-
-        // Implement client-side pagination
         const startIndex = (page - 1) * itemsPerPage;
         const endIndex = startIndex + itemsPerPage;
-        const paginatedData = wardsArray.slice(startIndex, endIndex);
-
-        setWards(paginatedData);
+        
+        setWards(wardsArray.slice(startIndex, endIndex));
         setPagination({
           currentPage: page,
           totalPages: Math.ceil(wardsArray.length / itemsPerPage),
@@ -60,13 +57,7 @@ const WardInfo: React.FC = () => {
         });
       } else {
         setWards([]);
-        setAllWards([]);
-        setPagination({
-          currentPage: 1,
-          totalPages: 1,
-          totalItems: 0,
-          limit: itemsPerPage
-        });
+        resetPagination(itemsPerPage);
       }
     } catch (err) {
       console.error('Failed to fetch wards:', err);
@@ -74,29 +65,28 @@ const WardInfo: React.FC = () => {
     }
   };
 
-  // Fetch wards on component mount
+  const resetPagination = (itemsPerPage: number = 10) => {
+    setPagination({
+      currentPage: 1,
+      totalPages: 1,
+      totalItems: 0,
+      limit: itemsPerPage
+    });
+  };
+
+  // Effects
   useEffect(() => {
     fetchWards();
-
-    // Set up realtime listener
-    const wardsRef = ref(db, 'wards');
+    
+    const wardsRef = ref(db, 'wardInfo');
     const unsubscribe = onValue(wardsRef, (snapshot) => {
       if (snapshot.exists()) {
         const data = snapshot.val();
-        let wardsArray: Ward[] = Object.keys(data).map(key => ({
+        const wardsArray = Object.keys(data).map(key => ({
           id: key,
           ...data[key]
         }));
-
-        // Sort wards by ID in descending order (newest first)
-        wardsArray = wardsArray.sort((a, b) => {
-          if (!a.id || !b.id) return 0;
-          return b.id.localeCompare(a.id);
-        });
-
-        setAllWards(wardsArray); // Update all wards for uniqueness check
-
-        // Update the list without changing pagination
+        
         setWards(prev => {
           const startIndex = (pagination.currentPage - 1) * pagination.limit;
           const endIndex = startIndex + pagination.limit;
@@ -104,73 +94,93 @@ const WardInfo: React.FC = () => {
         });
       } else {
         setWards([]);
-        setAllWards([]);
       }
     });
 
     return () => unsubscribe();
   }, []);
 
+  // Form handlers
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
+    
+    if (name === 'wardName') {
+      // Allow only alphanumeric characters and no leading space
+      const isValid = /^[a-zA-Z0-9 ]*$/.test(value);
+      const noLeadingSpace = !/^\s/.test(value);
 
-    // Validation for ward name field
-    const isValid = /^[a-zA-Z0-9 ]*$/.test(value);
-    const noLeadingSpace = !/^\s/.test(value);
-
-    if (isValid && noLeadingSpace) {
-      setFormData({ ...formData, [name]: value });
+      if (isValid && noLeadingSpace) {
+        setFormData(prev => ({ ...prev, [name]: value }));
+      }
+    } else if (name === 'wardNumber') {
+      // Allow only numbers
+      if (/^\d*$/.test(value)) {
+        setFormData(prev => ({ ...prev, [name]: value }));
+      }
     }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setIsSubmitting(true);
 
     try {
-      if (!formData.name) {
-        toast.error('Ward name is required');
-        return;
+      switch (formAction) {
+        case 'Add':
+          await push(ref(db, 'wardInfo'), formData);
+          toast.success(`Ward "${formData.wardName}" added successfully`);
+          break;
+        case 'Update':
+          if (formData.id) {
+            await update(ref(db, `wardInfo/${formData.id}`), formData);
+            toast.success(`"${formData.wardName}" updated successfully`);
+          }
+          break;
+        case 'Delete':
+          if (deleteId) {
+            await remove(ref(db, `wardInfo/${deleteId}`));
+            toast.success(`"${formData.wardName}" deleted successfully`);
+          }
+          break;
       }
 
-      if (!isWardUnique(formData.name)) {
-        toast.error('Ward name must be unique');
-        return;
-      }
-
-      // Add new ward
-      await push(ref(db, 'wards'), formData);
-      toast.success(`Ward added successfully`);
-
-      setFormData({ name: '' });
-      setToggleAddWard(false);
+      resetForm();
       fetchWards(pagination.currentPage, pagination.limit);
     } catch (err) {
-      console.error('Failed to add ward:', err);
-      toast.error('Failed to add ward');
+      console.error('Operation failed:', err);
+      toast.error(`Failed to ${formAction.toLowerCase()} ward`);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
-  const handleDelete = async (wardId: string) => {
-    try {
-      await remove(ref(db, `wards/${wardId}`));
-      toast.success(`Ward deleted successfully`);
-      fetchWards(pagination.currentPage, pagination.limit);
-    } catch (err) {
-      console.error('Failed to delete ward:', err);
-      toast.error('Failed to delete ward');
-    }
+  const resetForm = () => {
+    setFormData({ wardName: '', wardNumber: '' });
+    setIsFormOpen(false);
+    setFormAction('Add');
   };
 
-  const showForm = () => {
-    setToggleAddWard(!toggleAddWard);
-    setFormData({ name: '' });
+  // Ward actions
+  const handleEdit = (ward: WardInfo) => {
+    setFormData(ward);
+    setFormAction('Update');
+    setIsFormOpen(true);
   };
 
-  const closeForm = () => {
-    setToggleAddWard(false);
-    setFormData({ name: '' });
+  const handleDelete = (ward: WardInfo) => {
+    setFormData(ward);
+    setDeleteId(ward.id || null);
+    setFormAction('Delete');
+    setIsFormOpen(true);
   };
 
+  const toggleForm = () => {
+    setIsFormOpen(!isFormOpen);
+    setFormAction('Add');
+    setFormData({ wardName: '', wardNumber: '' });
+  };
+
+  // Pagination
   const goToPage = (page: number) => {
     if (page >= 1 && page <= pagination.totalPages) {
       fetchWards(page, pagination.limit);
@@ -183,9 +193,13 @@ const WardInfo: React.FC = () => {
     fetchWards(1, newLimit);
   };
 
-  const isWardUnique = (name: string): boolean => {
-    // Check if the ward name is unique in the allWards array
-    return !allWards.some(ward => ward.name.toLowerCase() === name.toLowerCase());
+  // Utility functions
+  const isWardUnique = (wardName: string, wardNumber: string, id?: string) => {
+    return !wards.some(ward => 
+      (ward.wardName.toLowerCase() === wardName.toLowerCase() || 
+       ward.wardNumber === wardNumber) && 
+      ward.id !== id
+    );
   };
 
   const calculateShowingRange = () => {
@@ -196,15 +210,22 @@ const WardInfo: React.FC = () => {
 
   const { start, end } = calculateShowingRange();
 
+  // Derived values
+  const formTitle = `${formAction} Ward${formAction === 'Add' ? '' : ' Info'}`;
+  const isUnique = formData.wardName && formData.wardNumber && 
+                  isWardUnique(formData.wardName, formData.wardNumber, formData.id);
+  const showUniquenessError = formData.wardName && formData.wardNumber && 
+                            !isUnique && formAction === 'Add' && !isSubmitting;
+
   return (
     <div className="p-4 relative">
-      <div className={`flex-grow transition-all duration-500 ${toggleAddWard ? 'mr-[25%]' : ''}`}>
+      <div className={`flex-grow transition-all duration-500 ${isFormOpen ? 'mr-[25%]' : ''}`}>
         <div className="flex items-center justify-left mb-4 gap-2">
-          <h2 className="text-xl font-bold">Ward Info</h2>
+          <h2 className="text-xl font-bold">Ward Information</h2>
           <img
-            onClick={showForm}
+            onClick={toggleForm}
             className={`w-[25px] h-[25px] object-contain transition-transform duration-300 cursor-pointer ${
-              toggleAddWard ? 'rotate-90' : 'rotate-0'
+              isFormOpen ? 'rotate-90' : 'rotate-0'
             }`}
             src="/images/icons/addtwo.svg"
             alt="Add Ward"
@@ -221,37 +242,49 @@ const WardInfo: React.FC = () => {
                 onChange={handleLimitChange}
                 className="border p-1 rounded text-sm"
               >
-                {[5, 10].map(num => (
+                {ITEMS_PER_PAGE_OPTIONS.map(num => (
                   <option key={num} value={num}>{num}</option>
                 ))}
               </select>
             </div>
           </div>
-
+          
           <table className="w-full table-auto border-collapse mb-4">
             <thead className="text-left">
               <tr className="bg-gray-200">
                 <th className="border p-2">Ward Name</th>
+                <th className="border p-2">Ward Number</th>
                 <th className="border p-2">Actions</th>
               </tr>
             </thead>
             <tbody>
-              {wards.map((ward, index) => (
-                <tr key={ward.id || index}>
-                  <td className="border p-2">{ward.name}</td>
-                  <td className="border p-2">
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() => handleDelete(ward.id!)}
-                        className="p-1 text-black hover:text-red-600"
-                        aria-label="Delete"
-                      >
-                        <Trash2 size={18} />
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
+              {wards
+                .slice() // Create a copy of the array
+                .sort((a, b) => (b.id || '').localeCompare(a.id || '')) // Sort by id in descending order
+                .map((ward) => (
+                  <tr key={ward.id}>
+                    <td className="border p-2">{ward.wardName}</td>
+                    <td className="border p-2">{ward.wardNumber}</td>
+                    <td className="border p-2">
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => handleEdit(ward)}
+                          className="p-1 text-black hover:text-gray-700"
+                          aria-label="Edit"
+                        >
+                          <Pencil size={18} />
+                        </button>
+                        <button
+                          onClick={() => handleDelete(ward)}
+                          className="p-1 text-black hover:text-red-600"
+                          aria-label="Delete"
+                        >
+                          <Trash2 size={18} />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
             </tbody>
           </table>
 
@@ -277,7 +310,7 @@ const WardInfo: React.FC = () => {
               >
                 <ChevronLeft size={18} />
               </button>
-
+              
               {Array.from({ length: Math.min(5, pagination.totalPages) }, (_, i) => {
                 let pageNum;
                 if (pagination.totalPages <= 5) {
@@ -289,7 +322,7 @@ const WardInfo: React.FC = () => {
                 } else {
                   pageNum = pagination.currentPage - 2 + i;
                 }
-
+                
                 return (
                   <button
                     key={pageNum}
@@ -300,7 +333,7 @@ const WardInfo: React.FC = () => {
                   </button>
                 );
               })}
-
+              
               <button
                 onClick={() => goToPage(pagination.currentPage + 1)}
                 disabled={pagination.currentPage === pagination.totalPages}
@@ -327,54 +360,76 @@ const WardInfo: React.FC = () => {
           autoClose={3000}
         />
       </div>
-
-      {/* Form for adding ward */}
+      
+      {/* Form for adding/updating/deleting ward */}
       <div className={`fixed top-0 right-0 h-full w-[20%] bg-white border-l-2 py-28 border-gray-200 transform transition-transform duration-500 ease-in-out ${
-        toggleAddWard ? 'translate-x-0' : 'translate-x-full'
+        isFormOpen ? 'translate-x-0' : 'translate-x-full'
       }`}>
         <div className="p-4 relative">
           <button 
-            onClick={closeForm}
+            onClick={resetForm}
             className="absolute top-4 right-4 text-black hover:text-gray-700"
             aria-label="Close form"
           >
             <X size={20} />
           </button>
-
-          <h3 className="text-lg font-semibold mb-4 text-black">Add Ward</h3>
+          
+          <h3 className="text-lg font-semibold mb-4 text-black">{formTitle}</h3>
           <form onSubmit={handleSubmit} className="space-y-3">
             <div className="mb-2">
-              <label htmlFor="name" className="block font-medium mb-1 text-black">
+              <label htmlFor="wardName" className="block font-medium mb-1 text-black">
                 Ward Name <span className="text-red-500">*</span>
               </label>
               <input
-                id="name"
-                name="name"
+                id="wardName"
+                name="wardName"
                 placeholder="Enter Ward Name"
-                value={formData.name}
+                value={formData.wardName}
                 onChange={handleChange}
                 className={`block border p-2 w-full ${
-                  formData.name && !isWardUnique(formData.name)
-                    ? 'border-red-500' 
-                    : ''
+                  showUniquenessError ? 'border-red-500' : ''
                 }`}
-                required
+                required={formAction !== 'Delete'}
+                readOnly={formAction === 'Delete'}
               />
-              {formData.name && !isWardUnique(formData.name) && (
-                <p className="text-red-500 text-sm mt-1">Ward name must be unique</p>
+            </div>
+
+            <div className="mb-2">
+              <label htmlFor="wardNumber" className="block font-medium mb-1 text-black">
+                Ward Number <span className="text-red-500">*</span>
+              </label>
+              <input
+                id="wardNumber"
+                name="wardNumber"
+                placeholder="Enter Ward Number"
+                value={formData.wardNumber}
+                onChange={handleChange}
+                className={`block border p-2 w-full ${
+                  showUniquenessError ? 'border-red-500' : ''
+                }`}
+                required={formAction !== 'Delete'}
+                readOnly={formAction === 'Delete'}
+              />
+              {showUniquenessError && (
+                <p className="text-red-500 text-sm mt-1">Ward name or number must be unique</p>
               )}
             </div>
 
             <button
               type="submit"
               className={`${
-                formData.name && isWardUnique(formData.name)
-                  ? 'bg-blue-600 hover:bg-blue-700'
-                  : 'bg-gray-300 cursor-not-allowed'
+                formAction === 'Delete'
+                  ? 'bg-red-600 hover:bg-red-700'
+                  : formData.wardName && formData.wardNumber && (formAction === 'Update' || isUnique)
+                    ? 'bg-blue-600 hover:bg-blue-700'
+                    : 'bg-gray-300 cursor-not-allowed'
               } text-white px-4 py-2 rounded w-full transition-colors`}
-              disabled={!formData.name || !isWardUnique(formData.name)}
+              disabled={
+                (formAction !== 'Delete' && (!formData.wardName || !formData.wardNumber)) ||
+                (formAction === 'Add' && !isUnique)
+              }
             >
-              Add Ward
+              {formAction}
             </button>
           </form>
         </div>

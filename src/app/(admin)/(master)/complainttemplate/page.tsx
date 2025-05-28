@@ -20,7 +20,7 @@ const ComplaintTemplate: React.FC = () => {
     description: '' 
   });
   const [toggleAddTemplate, setToggleAddTemplate] = useState(false);
-  const [toggleText, setToggleText] = useState('Add Template');
+  const [toggleText, setToggleText] = useState('Add Complaint'); // Changed from "Add Template" to "Add Complaint"
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [pagination, setPagination] = useState({
     currentPage: 1,
@@ -116,31 +116,31 @@ const ComplaintTemplate: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     try {
-      if (toggleText === "Add Template") {
+      if (toggleText === "Add Complaint") { // Changed from "Add Template" to "Add Complaint"
         // Add new template
-        await push(ref(db, 'complaintTemplates'), formData);
-        toast.success(`Template added successfully`);
+        const newTemplateRef = await push(ref(db, 'complaintTemplates'), formData);
+        toast.success(`Complaint "${formData.complaint}" added successfully`);
       } 
       else if (toggleText === "Update Template" && formData.id) {
         // Update existing template
         await update(ref(db, `complaintTemplates/${formData.id}`), formData);
-        toast.success(`Template updated successfully`);
-      }
+        toast.success(`"${formData.complaint}" updated successfully`);
+      } 
       else if (toggleText === "Delete Template" && deleteId) {
         // Delete template
         await remove(ref(db, `complaintTemplates/${deleteId}`));
-        toast.success(`Template deleted successfully`);
+        toast.success(` "${formData.complaint}" deleted successfully`);
       }
-      
+
       setFormData({ complaint: '', description: '' });
       setToggleAddTemplate(false);
-      setToggleText('Add Template');
+      setToggleText('Add Complaint'); // Changed from "Add Template" to "Add Complaint"
       fetchTemplates(pagination.currentPage, pagination.limit);
     } catch (err) {
       console.error('Operation failed:', err);
-      toast.error(`Failed to ${toggleText.toLowerCase()} template`);
+      toast.error(`Failed to ${toggleText.toLowerCase()} complaint "${formData.complaint}"`);
     }
   };
 
@@ -159,13 +159,13 @@ const ComplaintTemplate: React.FC = () => {
 
   const showForm = () => {
     setToggleAddTemplate(!toggleAddTemplate);
-    setToggleText("Add Template");
+    setToggleText("Add Complaint"); // Changed from "Add Template" to "Add Complaint"
     setFormData({ complaint: '', description: '' });
   };
 
   const closeForm = () => {
     setToggleAddTemplate(false);
-    setToggleText("Add Template");
+    setToggleText("Add Complaint"); // Changed from "Add Template" to "Add Complaint"
     setFormData({ complaint: '', description: '' });
   };
 
@@ -236,30 +236,33 @@ const ComplaintTemplate: React.FC = () => {
               </tr>
             </thead>
             <tbody>
-              {templates.map((template, index) => (
-                <tr key={template.id || index}>
-                  <td className="border p-2">{template.complaint}</td>
-                  <td className="border p-2 max-w-xs truncate">{template.description}</td>
-                  <td className="border p-2">
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() => handleEdit(template)}
-                        className="p-1 text-black hover:text-gray-700"
-                        aria-label="Edit"
-                      >
-                        <Pencil size={18} />
-                      </button>
-                      <button
-                        onClick={() => handleDelete(template)}
-                        className="p-1 text-black hover:text-red-600"
-                        aria-label="Delete"
-                      >
-                        <Trash2 size={18} />
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
+              {templates
+                .slice() // Create a copy of the array
+                .sort((a, b) => (b.id || '').localeCompare(a.id || '')) // Sort by id in descending order
+                .map((template, index) => (
+                  <tr key={template.id || index}>
+                    <td className="border p-2">{template.complaint}</td>
+                    <td className="border p-2 max-w-xs truncate">{template.description}</td>
+                    <td className="border p-2">
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => handleEdit(template)}
+                          className="p-1 text-black hover:text-gray-700"
+                          aria-label="Edit"
+                        >
+                          <Pencil size={18} />
+                        </button>
+                        <button
+                          onClick={() => handleDelete(template)}
+                          className="p-1 text-black hover:text-red-600"
+                          aria-label="Delete"
+                        >
+                          <Trash2 size={18} />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
             </tbody>
           </table>
 
@@ -395,11 +398,14 @@ const ComplaintTemplate: React.FC = () => {
               className={`${
                 toggleText === 'Delete Template'
                   ? 'bg-red-600 hover:bg-red-700'
-                  : formData.complaint
+                  : formData.complaint && isTemplateUnique(formData.complaint, formData.id)
                     ? 'bg-blue-600 hover:bg-blue-700'
                     : 'bg-gray-300 cursor-not-allowed'
               } text-white px-4 py-2 rounded w-full transition-colors`}
-              disabled={!formData.complaint && toggleText !== 'Delete Template'}
+              disabled={
+                toggleText !== 'Delete Template' &&
+                (!formData.complaint || !isTemplateUnique(formData.complaint, formData.id))
+              }
             >
               {toggleText}
             </button>

@@ -2,15 +2,19 @@ import React , {useState} from 'react';
 import BarLoader from 'react-spinners/BarLoader';
 import "../../app/(admin)/styles.css";
 
+
 import {
   ChevronLeft,
   ChevronRight,
   ChevronsLeft,
   ChevronsRight,
   Pencil,
-  Trash2
+  Trash2 ,
+  Archive ,
+  ArchiveRestore
 } from 'lucide-react';
 
+type ActionMode = 'delete' | 'archive' | 'disable' | 'flag' | "disable" | "restore"; // Add more if needed
 
 interface PaginationProps {
   currentPage: number;
@@ -28,20 +32,55 @@ interface TableProps<T extends Record<string, any>> {
   isSideBarOpen: boolean;
   handleEdit: (row: T) => void;
   handleDelete: (row: T) => void;
+  handleArchive : (row : T) => void ;
+  handleArchiveRestore : (row : T) => void ;
+  actionMode?: ActionMode;
+
 }
 
 
-const TableProp = <T extends Record<string, any>>({ data , pagination , goToPage , handleLimitChange , isSideBarOpen , handleDelete ,handleEdit }: TableProps<T>) => {
+const TableProp = <T extends Record<string, any>>({ data , pagination , goToPage , handleLimitChange , isSideBarOpen , handleDelete ,handleEdit , handleArchive , handleArchiveRestore , actionMode = 'delete' }: TableProps<T>) => {
   if (!data || data.length === 0) {
     return <div>
       <BarLoader color="#000"  />
     </div>;
   }
-  4
   console.log("data" , data);
   const headings = Object.keys(data[0]).filter(
-  (key) => key !== '_id' && key !== 'createdAt' && key !== 'updatedAt' && key !== "firstName" && key !== "lastName" && key !== "salutation" && key !== "middleName" && key !== "address" && key !== "photo" &&  key !== "gstin" && key !=="panNo"
+  (key) => key !== '_id' && key !== 'createdAt' && key !== 'updatedAt' && key !== "firstName" && key !== "lastName" && key !== "salutation" && key !== "middleName" && key !== "address" && key !== "photo" &&  key !== "gstin" && key !=="panNo" && key !== "isArchived"
 );
+
+const renderActionIcon = () => {
+  switch (actionMode) {
+    case 'archive':
+      return <Archive className="w-5 h-5" />;
+    case 'restore':
+      return <ArchiveRestore className="w-5 h-5" />;
+    case 'disable':
+      return ;
+    case 'delete':
+    default:
+      return <Trash2 className="w-5 h-5" />;
+  }
+};
+
+  
+  const handleAction = (row: any) => {
+    switch (actionMode) {
+      case 'archive':
+        handleArchive?.(row);
+        break;
+      case 'restore':
+        handleArchiveRestore?.(row);
+        break;
+      case 'disable':
+        break;
+      case 'delete':
+      default:
+        handleDelete?.(row);
+        break;
+    }
+  };
 
   return (
     <div  className={`flew flex-grow transition-all  duration-500 overflow-x-auto  rounded-2xl border-2 p-4 shadow-md custom-scroll-table  ${
@@ -82,7 +121,7 @@ const TableProp = <T extends Record<string, any>>({ data , pagination , goToPage
               {formattedKey}
             </th>
             )})}
-         <th className={`border px-4 py-2 bg-gray-100 text-left text-lg `}>Actions</th>
+         {actionMode !== "disable" &&<th className={`border px-4 py-2 bg-gray-100 text-left text-lg `}>Actions</th>}
         
         </tr>
         
@@ -104,13 +143,13 @@ const TableProp = <T extends Record<string, any>>({ data , pagination , goToPage
   : item[key] || "N/A"}
             </td>
           ))}
-          <td className="border px-4 py-2">
+<td className="border px-4 py-2">
             <div className="flex gap-2">
-              <button onClick={() => handleEdit(item)} className="p-1 text-black hover:text-gray-700">
+              {actionMode !== "restore" &&<button onClick={() => handleEdit(item)} className="p-1 text-black hover:text-gray-700">
                 <Pencil size={18} />
-              </button>
-              <button onClick={() => handleDelete(item)} className="p-1 text-black hover:text-red-600">
-                <Trash2 size={18} />
+              </button>}
+              <button onClick={() => handleAction(item)} className={`p-1 text-black ${actionMode === "delete" ? "hover:text-red-600" : " hover:text-green-500"} `}>
+               {renderActionIcon()}
               </button>
             </div>
           </td>

@@ -110,7 +110,7 @@ const WardInfo: React.FC = () => {
   // Form handlers
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
-    
+
     if (name === 'wardName') {
       // Allow only alphanumeric characters and no leading space
       const isValid = /^[a-zA-Z0-9 ]*$/.test(value);
@@ -120,8 +120,8 @@ const WardInfo: React.FC = () => {
         setFormData(prev => ({ ...prev, [name]: value }));
       }
     } else if (name === 'wardNumber') {
-      // Allow only numbers
-      if (/^\d*$/.test(value)) {
+      // Ensure the input is exactly 2 digits
+      if (/^\d{0,2}$/.test(value)) {
         setFormData(prev => ({ ...prev, [name]: value }));
       }
     }
@@ -132,6 +132,13 @@ const WardInfo: React.FC = () => {
     setIsSubmitting(true);
 
     try {
+      // Validate Ward Number length
+      if (formData.wardNumber.length !== 2) {
+        toast.error('Ward Number must be exactly 2 digits');
+        setIsSubmitting(false);
+        return;
+      }
+
       // Check uniqueness for Add and Update actions
       const isUnique = isWardUnique(formData.wardName, formData.wardNumber, formData.id);
       if (!isUnique) {
@@ -267,8 +274,8 @@ const WardInfo: React.FC = () => {
           <table className="w-full table-auto border-collapse mb-4">
             <thead className="text-left">
               <tr className="bg-gray-200">
-                <th className="border p-2">Ward Name</th>
                 <th className="border p-2">Ward Number</th>
+                <th className="border p-2">Ward Name</th>
                 <th className="border p-2">Actions</th>
               </tr>
             </thead>
@@ -278,8 +285,8 @@ const WardInfo: React.FC = () => {
                 .sort((a, b) => (b.id || '').localeCompare(a.id || '')) // Sort by id in descending order
                 .map((ward) => (
                   <tr key={ward.id}>
-                    <td className="border p-2">{ward.wardName}</td>
                     <td className="border p-2">{ward.wardNumber}</td>
+                    <td className="border p-2">{ward.wardName}</td>
                     <td className="border p-2">
                       <div className="flex gap-2">
                         <button
@@ -429,21 +436,26 @@ const WardInfo: React.FC = () => {
                 <p className="text-red-500 text-sm mt-1">Ward name or number must be unique</p>
               )}
             </div>
-
             <button
-              type="submit"
-              className={`${
-                formAction === 'Delete'
-                  ? 'bg-red-600 hover:bg-red-700'
-                  : formData.wardName && formData.wardNumber && (formAction === 'Update' || isUnique)
-                    ? 'bg-blue-600 hover:bg-blue-700'
-                    : 'bg-gray-300 cursor-not-allowed'
-              } text-white px-4 py-2 rounded w-full transition-colors`}
-              disabled={
-                (formAction !== 'Delete' && (!formData.wardName || !formData.wardNumber)) ||
-                (formAction === 'Add' && !isUnique)
-              }
-            >
+  type="submit"
+  className={`${
+    formAction === 'Delete'
+      ? 'bg-red-600 hover:bg-red-700'
+      : formData.wardName &&
+        formData.wardNumber.length === 2 &&
+        (formAction === 'Update' || isUnique)
+        ? 'bg-blue-600 hover:bg-blue-700'
+        : 'bg-gray-300 cursor-not-allowed'
+  } text-white px-4 py-2 rounded w-full transition-colors`}
+  disabled={
+    formAction !== 'Delete' &&
+    (
+      !formData.wardName ||
+      formData.wardNumber.length !== 2 ||
+      (formAction === 'Add' && !isUnique)
+    )
+  }
+>
               {formAction}
             </button>
           </form>

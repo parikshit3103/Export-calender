@@ -144,12 +144,17 @@ const ComplaintTemplate: React.FC = () => {
   // Form handlers
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
-    
+
     if (name === 'complaint') {
       const isValid = /^[a-zA-Z0-9 ]*$/.test(value);
       const noLeadingSpace = !/^\s/.test(value);
 
       if (isValid && noLeadingSpace) {
+        setFormData(prev => ({ ...prev, [name]: value }));
+      }
+    } else if (name === 'description') {
+      // Limit description to 160 characters
+      if (value.split(' ').length <= 160) {
         setFormData(prev => ({ ...prev, [name]: value }));
       }
     } else {
@@ -434,7 +439,7 @@ const ComplaintTemplate: React.FC = () => {
 
             <div className="mb-2">
               <label htmlFor="description" className="block font-medium mb-1 text-black">
-                Description
+                Description <span className="text-gray-500">(Max 160 words)</span>
               </label>
               <textarea
                 id="description"
@@ -446,6 +451,9 @@ const ComplaintTemplate: React.FC = () => {
                 required={false}
                 readOnly={formAction === 'Delete'}
               />
+              <p className="text-sm text-gray-500 mt-1">
+                {formData.description.split(' ').length}/160 words
+              </p>
             </div>
 
             <button

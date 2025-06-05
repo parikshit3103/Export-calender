@@ -5,6 +5,7 @@ import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import { db } from '@/lib/firebase';
 import { ref, onValue, push, update, remove, get } from 'firebase/database';
+import SearchBar from '@/components/searchBar/SearchBar';
 
 interface WardInfo {
   id?: string;
@@ -23,6 +24,9 @@ const WardInfo: React.FC = () => {
   });
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [formAction, setFormAction] = useState<'Add' | 'Update' | 'Delete'>('Add');
+   const [searchQuery, setSearchQuery] = useState('');
+    const [allData, setAllData] = useState<WardInfo[]>([]);
+    const [filteredData, setFilteredData] = useState<WardInfo[]>([]);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [pagination, setPagination] = useState({
     currentPage: 1,
@@ -44,6 +48,9 @@ const WardInfo: React.FC = () => {
           id: key,
           ...data[key]
         }));
+
+                setAllData(wardsArray);
+      setFilteredData(wardsArray);
 
         // Sort wards by ID in descending order to get the latest entry first
         const sortedWards = wardsArray.sort((a, b) => (b.id || '').localeCompare(a.id || ''));
@@ -169,6 +176,32 @@ const WardInfo: React.FC = () => {
     }
   };
 
+  const handleSearch = (query: string) => {
+  setSearchQuery(query);
+
+  if (query.trim() === '') {
+    setFilteredData(allData);
+    return;
+  }
+
+  const lower = query.toLowerCase();
+
+  const result = allData.filter((item) =>
+    item.wardName.toLowerCase().includes(lower) ||
+    item.wardNumber.toLowerCase().includes(lower)
+  );
+
+  setFilteredData(result);
+
+  // Reset pagination when search changes
+  setPagination((prev) => ({
+    ...prev,
+    currentPage: 1,
+    totalItems: result.length,
+    totalPages: Math.ceil(result.length / prev.limit),
+  }));
+};
+
   const resetForm = () => {
     setFormData({ wardName: '', wardNumber: '' });
     setIsFormOpen(false);
@@ -246,8 +279,9 @@ const WardInfo: React.FC = () => {
             alt="Add Ward"
           />
         </div>
+        <SearchBar searchQuery={searchQuery} onSearch={handleSearch} placeholder='Search by Ward Name  or Ward Number...' />
 
-        <div className="bg-white p-4 rounded shadow">
+        <div className="bg-white p-4 rounded shadow mt-6">
           <div className="flex justify-between items-center mb-3">
             <h3 className="text-lg font-semibold">All Wards</h3>
             <div className="flex items-center gap-2">
@@ -273,7 +307,7 @@ const WardInfo: React.FC = () => {
               </tr>
             </thead>
             <tbody>
-              {wards
+              {filteredData
                 .slice() // Create a copy of the array
                 .sort((a, b) => (b.id || '').localeCompare(a.id || '')) // Sort by id in descending order
                 .map((ward) => (

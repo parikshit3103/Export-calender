@@ -47,7 +47,7 @@ const TableProp = <T extends Record<string, any>>({ data , pagination , goToPage
   }
   console.log("data" , data);
   const headings = Object.keys(data[0]).filter(
-  (key) => key !== '_id' && key !== 'createdAt' && key !== 'updatedAt' && key !== "firstName" && key !== "lastName" && key !== "salutation" && key !== "middleName" && key !== "address" && key !== "photo" &&  key !== "gstin" && key !=="panNo" && key !== "isArchived"
+  (key) => key !== '_id' && key !== 'createdAt' && key !== 'updatedAt' && key !== "firstName" && key !== "lastName" && key !== "salutation" && key !== "middleName" && key !== "address" && key !== "photo" &&  key !== "gstin" && key !=="panNo" && key !== "isArchived" && key !== "password"
 );
 
 const renderActionIcon = () => {
@@ -83,7 +83,7 @@ const renderActionIcon = () => {
   };
 
   return (
-    <div  className={`flew flex-grow transition-all  duration-500 overflow-x-auto  rounded-2xl border-2 p-4 shadow-md custom-scroll-table  ${
+    <div  className={`flew flex-grow transition-all  duration-500 border-2 overflow-x-auto p-4 shadow-md custom-scroll-table  ${
       isSideBarOpen ? 'mr-[25%]' : ''
     }`}>
        <div className="flex justify-between items-center mb-3">
@@ -117,11 +117,11 @@ const renderActionIcon = () => {
                const formattedKey = key === "countryCode"
                ? "Country Code" : key === "Select Country" ? "Country" :key === "Select State" ? "State" : key === "Select City" ? "City" : key === "formattedAddress" ? "Address" :  key.replace(/([A-Z])/g, " $1").replace(/^./, str => str.toUpperCase());
             return (
-            <th key={key} className={`border px-4 py-2 bg-gray-100 text-left text-lg  `}>
+            <th key={key} className={` px-4 py-2 bg-gray-300 text-left text-lg  `}>
               {formattedKey}
             </th>
             )})}
-         {actionMode !== "disable" &&<th className={`border px-4 py-2 bg-gray-100 text-left text-lg `}>Actions</th>}
+         {actionMode !== "disable" &&<th className={` px-4 py-2 bg-gray-300 text-left text-lg `}>Actions</th>}
         
         </tr>
         

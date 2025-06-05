@@ -3,10 +3,12 @@
 import React , {useState} from 'react';
 import Image from "next/image";
 import { useRouter } from 'next/navigation';
+import { Eye, EyeOff } from 'lucide-react'; // 
 
 const Login:React.FC = () => {
     const [id, setId] = useState("");
   const [password, setPassword] = useState("");
+    const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const router = useRouter();
@@ -17,7 +19,7 @@ const Login:React.FC = () => {
     setLoading(true);
 
     setTimeout(() => {
-      if (id === "admin" && password === "123@admin") {
+      if (id === "configadmin" && password === "123@admin") {
          sessionStorage.setItem("userId", id);
         router.push("/dashboard"); // redirect to main page
       } else {
@@ -63,12 +65,12 @@ const Login:React.FC = () => {
             />
           </div>
 
-          <div>
+          <div className='relative'>
             <label htmlFor="password" className="block text-sm font-medium text-gray-700">
               Password
             </label>
             <input
-              type="password"
+               type={showPassword ? 'text' : 'password'}
               id="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
@@ -76,6 +78,13 @@ const Login:React.FC = () => {
               placeholder="••••••••"
               required
             />
+            <div
+        className="absolute right-3 top-9 cursor-pointer text-gray-500"
+        onClick={() => setShowPassword(!showPassword)}
+      >
+        {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+      </div>
+
           </div>
 
           <div className="flex items-center justify-between text-sm">

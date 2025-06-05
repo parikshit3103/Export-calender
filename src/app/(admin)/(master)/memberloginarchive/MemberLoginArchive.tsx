@@ -5,6 +5,7 @@ import TableProp from '@/components/tableprop/TableProp';
 import { toast , ToastContainer } from 'react-toastify';
 import { ref, remove , push  , get , child , update } from 'firebase/database';
 import { ArchiveRestore } from 'lucide-react';
+import SearchBar from '@/components/searchBar/SearchBar';
 
 
 interface AdressProps {
@@ -35,6 +36,9 @@ const MemberLoginArchive:React.FC<Props>  = ( { refreshKey, onAction}) => {
     const [toggleAdd, setToggleAdd] = React.useState(false);
     const [address, setAddress] = useState<AdressProps[]>([]);
     const [tableData, setTableData] = useState<AdressProps[]>(address);
+    const [searchQuery, setSearchQuery] = useState('');
+    const [allData, setAllData] = useState<AdressProps[]>([]);
+    const [filteredData, setFilteredData] = useState<AdressProps[]>([]);
     const [pagination, setPagination] = useState({
           currentPage: 1,
           totalPages: 1,
@@ -61,6 +65,9 @@ const MemberLoginArchive:React.FC<Props>  = ( { refreshKey, onAction}) => {
           _id: key,
         }))
         .filter(item => item.isArchived); // ✅ Only archived items
+
+             setAllData(allData);
+      setFilteredData(allData);
 
       const totalItems = allData.length;
       const totalPages = Math.ceil(totalItems / limit);
@@ -111,6 +118,35 @@ const handleDelete = (data : AdressProps) => {
 
 }
 
+
+ const handleSearch = (query: string) => {
+  setSearchQuery(query);
+
+  if (query.trim() === '') {
+    setFilteredData(allData);
+    return;
+  }
+
+  const lower = query.toLowerCase();
+
+  const result = allData.filter((item) =>
+    item.name.toLowerCase().includes(lower) ||
+    item.userId.toLowerCase().includes(lower) ||
+    item.contact.includes(lower)
+  );
+
+  setFilteredData(result);
+
+  // Reset pagination when search changes
+  setPagination((prev) => ({
+    ...prev,
+    currentPage: 1,
+    totalItems: result.length,
+    totalPages: Math.ceil(result.length / prev.limit),
+  }));
+};
+
+
 const archiveRestore = async (data: AdressProps) => {
   try {
     const id = data._id;
@@ -143,10 +179,11 @@ const archiveRestore = async (data: AdressProps) => {
 
   return (
     <div className='p-4 flex flex-col  gap-8 overflow-x-auto  '>
+      <SearchBar searchQuery={searchQuery} onSearch={handleSearch} placeholder='Search by name, userId, or contact...' />
     <div className='flex gap-2'>
     <h1 className='text-xl font-bold'>Archived Data</h1>
     </div>
-     <TableProp handleArchiveRestore={archiveRestore}  handleArchive={handleArchive}  actionMode="restore" data={address}  pagination={pagination} goToPage={goToPage} handleLimitChange={handleLimitChange} isSideBarOpen={toggleAdd} handleEdit={handleEdit} handleDelete={handleDelete} />
+     <TableProp handleArchiveRestore={archiveRestore}  handleArchive={handleArchive}  actionMode="restore" data={filteredData}  pagination={pagination} goToPage={goToPage} handleLimitChange={handleLimitChange} isSideBarOpen={toggleAdd} handleEdit={handleEdit} handleDelete={handleDelete} />
   <ToastContainer
   className="z-50 mt-20"
   position="top-right"

@@ -8,6 +8,7 @@ import { toast , ToastContainer } from 'react-toastify';
 import AddressForm from '@/components/addressform/AddressForm';
 import { ref, push , set , update , remove , get , child } from 'firebase/database';
 import { database } from '../../../lib/fireBaseConfig';
+import SearchBar from '@/components/searchBar/SearchBar';
 
 
 export type FormErrors<T> = {
@@ -21,7 +22,6 @@ interface AdressProps {
   name: string;
   role: string ;
   userId: string;
-  password: string;
   contact: string;
   wardNo : string ;
   wardName : string;
@@ -42,7 +42,6 @@ const [formData, setFormData] = useState<AdressProps>({
     name: '',
     role: '',
     userId: '',
-    password: '',
     contact: '',
     wardNo : '' ,
     wardName : ''
@@ -55,8 +54,14 @@ const [formData, setFormData] = useState<AdressProps>({
    const [tableData, setTableData] = useState<AdressProps[]>(address);
   const [validateContact, setValidateContact] = useState<(string)[]>([]);
    const [validateUserId, setValidateUserId] = useState<string[]>([]);
+   const [wardInfo, setWardInfo] = useState<{ wardNo: string; wardName: string }[]>([]);
+   const [wardNumber , setWardNumber] = useState<string[]>([]);
+   const [wardName , setWardName] = useState<string[]>([]);
 const [validatePassword, setValidatePassword] = useState<string[]>([]);
 const [validateWardNo, setValidateWardNo] = useState<string[]>([]);
+const [searchQuery, setSearchQuery] = useState('');
+const [allData, setAllData] = useState<AdressProps[]>([]);
+const [filteredData, setFilteredData] = useState<AdressProps[]>([]);
    const [pagination, setPagination] = useState({
       currentPage: 1,
       totalPages: 1,
@@ -83,7 +88,8 @@ const [validateWardNo, setValidateWardNo] = useState<string[]>([]);
         _id: key,
       })).filter((item) => !item.isArchived);
 
-
+          setAllData(allData);
+      setFilteredData(allData); // by default show al
       // ✅ Simulate pagination
       const totalItems = allData.length;
       const totalPages = Math.ceil(totalItems / limit);
@@ -116,6 +122,72 @@ setValidateWardNo(allData.map(item => item.wardNo))
       console.log('Address data:', address);
     }, [refreshKey]);
 
+ const handleSearch = (query: string) => {
+  setSearchQuery(query);
+
+  if (query.trim() === '') {
+    setFilteredData(allData);
+    return;
+  }
+
+  const lower = query.toLowerCase();
+
+  const result = allData.filter((item) =>
+    item.name.toLowerCase().includes(lower) ||
+    item.userId.toLowerCase().includes(lower) ||
+    item.contact.includes(lower)
+  );
+
+  setFilteredData(result);
+
+  // Reset pagination when search changes
+  setPagination((prev) => ({
+    ...prev,
+    currentPage: 1,
+    totalItems: result.length,
+    totalPages: Math.ceil(result.length / prev.limit),
+  }));
+};
+
+const fetchWardInfo = async () => {
+  try {
+    const dbRef = ref(database);
+    const snapshot = await get(child(dbRef, 'wardInfo'));
+
+    if (snapshot.exists()) {
+      const data = snapshot.val();
+      const numbers: string[] = [];
+      const names: string[] = [];
+      const wardArray: { wardNo: string; wardName: string }[] = [];
+
+      Object.values(data).forEach((item: any) => {
+        if (item.wardNumber && item.wardName) {
+          numbers.push(item.wardNumber);
+          names.push(item.wardName);
+            wardArray.push({
+            wardNo: item.wardNumber,
+            wardName: item.wardName,
+          });
+        }
+      });
+
+      setWardNumber(numbers);
+      setWardName(names);
+      setWardInfo(wardArray);
+    } else {
+      console.log("No wardInfo data found.");
+    }
+  } catch (error) {
+    console.error("Error fetching wardInfo:", error);
+  }
+};
+
+// Run once on component mount
+useEffect(() => {
+  fetchWardInfo();
+}, []);
+
+
   const showForm = () => {
     setToggleAdd(!toggleAdd);
     setToggleText('Add Member')
@@ -123,7 +195,6 @@ setValidateWardNo(allData.map(item => item.wardNo))
     name: '',
     role: '',
     userId: '',
-    password: '',
     contact: '',
     wardNo: '' ,
     wardName : ''
@@ -142,19 +213,23 @@ setValidateWardNo(allData.map(item => item.wardNo))
     };
     // function to handle editing a mandi
 const handleEdit = (data: AdressProps) => {
-    const updatedFormData: AdressProps = {
-    ...data,
-  };
+  const matchedWard = wardInfo.find(
+    (item) =>
+      item.wardNo === data.wardNo || item.wardName === data.wardName
+  );
 
-  // Set this in form state to populate the form
-  setFormData(updatedFormData);
+  const updatedFormData: AdressProps = {
+    ...data,
+    wardNo: matchedWard?.wardNo || '',
+    wardName: matchedWard?.wardName || '',
+    _id: data._id, // this is important for update to work
+  };
 
   setFormData(updatedFormData);
   setToggleText('Update Member');
   setToggleAdd(true);
-
-  console.log("Updated form data:", updatedFormData);
 };
+
 
   // function to handle deleting a mandi
   const handleDelete = async (address: AdressProps ) => {
@@ -186,9 +261,10 @@ const handleEdit = (data: AdressProps) => {
     (existing) => existing.toLowerCase() === userIdInput
   );
     const wardNoInput = formData.wardNo.trim().toLowerCase();
-  const isDuplicateWardNo = validateWardNo.some(
-    (existing) => existing.toLowerCase() === wardNoInput
-  );
+const isDuplicateWardNo = address.some(
+  (existing) =>
+    existing.wardNo.toLowerCase() === wardNoInput && !existing.isArchived
+);
 
   if (isDuplicate) {
     setErrors((prev) => ({
@@ -215,7 +291,7 @@ const handleEdit = (data: AdressProps) => {
     return;
   }
       const newEmployeeRef = push(employeeRef);
-      await set(newEmployeeRef, formData);
+      await set(newEmployeeRef, { ...formData, password: "ABCD@1234" });
       toast.success('Member added!');
 
     } else if (toggleText === 'Update Member') {
@@ -224,7 +300,8 @@ const handleEdit = (data: AdressProps) => {
         return;
       }
 
-      const memberRef = ref(database, `employeeInfo/${formData._id}`);
+      const memberRef = ref(database, `memberLogin/${formData._id}`);
+      console.log("memberRef address" , memberRef);
       await update(memberRef, formData); // updates only the fields you provide
       toast.success('Member updated!');
 
@@ -244,7 +321,6 @@ const handleEdit = (data: AdressProps) => {
       name: '',
       role: '',
       userId: '',
-      password: '',
       contact: '',
       wardNo : '' ,
       wardName : ''
@@ -266,13 +342,12 @@ setToggleAdd(false);}
         
  
 const handleChange = (
-  e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>,
-  scope?: string
+  e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>
 ) => {
   const { name, value } = e.target;
   let error = "";
 
-  // Validate contact field
+  // Validation logic
   if (name === "contact") {
     if (!/^[0-9]*$/.test(value)) {
       error = "Mobile number should contain only digits";
@@ -280,18 +355,33 @@ const handleChange = (
       error = "Mobile number should be only max 10 digits";
     }
   }
-  if (name === "name" && !/^[A-Za-z\s]*$/.test(value)  ) {
-            error = "Country code should contain only letters";
-          }
+
+  if (name === "name" && !/^[A-Za-z\s]*$/.test(value)) {
+    error = "Name should contain only letters";
+  }
+
   setErrors((prevErrors) => ({ ...prevErrors, [name]: error }));
 
   if (!error) {
-    setFormData((prev) => ({
-      ...prev,
-      [name]: value,
-    }));
+    let updatedFormData = { ...formData, [name]: value };
+
+    // Sync fields
+    if (name === "wardNo") {
+      const matched = wardInfo.find((item) => item.wardNo === value);
+      if (matched) {
+        updatedFormData.wardName = matched.wardName;
+      }
+    } else if (name === "wardName") {
+      const matched = wardInfo.find((item) => item.wardName === value);
+      if (matched) {
+        updatedFormData.wardNo = matched.wardNo;
+      }
+    }
+
+    setFormData(updatedFormData);
   }
 };
+
 
 
 
@@ -300,7 +390,7 @@ const handleArchive = async (data: AdressProps) => {
     toast.error('Invalid data: missing _id');
     return;
   }
-
+  setToggleAdd(false)
   const memberRef = ref(database, `memberLogin/${data._id}`);
 
   try {
@@ -317,28 +407,20 @@ const handleArchive = async (data: AdressProps) => {
  const formFields = [
 { name: 'name', label: 'Name*', type: 'text', placeholder: 'Enter name', required: true, readOnly: false },
     { name: 'role', label: 'Role*', type: 'select', options: ['Admin', 'Member'], required: false, readOnly: false },
-    { name: 'userId', label: 'User Id*', type: 'text', placeholder: 'Enter User Name', required: true, readOnly: false },
-  { name: 'password', label: 'Password*', type: 'password', placeholder: 'Enter Password', required: true, readOnly: false },
+    { name: 'userId', label: 'User Id*', type: 'text', placeholder: 'Enter User Name', required: true, readOnly: false } ,
   // Contact Person Name Section
   { name: 'contact', label: 'Contact*', type: 'text', required: false, readOnly: false },
-  { name: 'wardNo', label: 'Ward No', type: 'select', options: ['1', '2' , '3' , '4', '5', '6' ,'7' , '8' , '9' , '10', '11'], required: false, readOnly: false },
-  { name: 'wardName', label: 'Ward Name', type: 'select', options: [
-  'Rasoolpur',
-  'Vidyapeeth Marg',
-  'Arya Samaj',
-  'Ambedkar',
-  'Keshar Bagh',
-  'Babugarh',
-  'Kalyanpur',
-  'Dharamshala',
-  'Trishla Devi',
-  'Dinker Vihar',
-  'Indra Udhyan'
-], required: false, readOnly: false },
+  { name: 'wardNo', label: 'Ward No', type: 'select', options: wardNumber, required: false, readOnly: false },
+  { name: 'wardName', label: 'Ward Name', type: 'select', options: wardName , required: false, readOnly: false },
 ];
 
+const onSearch = () => {
+
+}
+
   return (
-    <div className='p-4 flex flex-col  gap-8 overflow-x-auto  '>
+    <div className=' flex flex-col  gap-8 overflow-x-auto relative px-4 '>
+    
     <div className='flex gap-2'>
     <h1 className='text-xl font-bold'>Member </h1>
     <img
@@ -350,8 +432,9 @@ const handleArchive = async (data: AdressProps) => {
             alt=""
           />
     </div>
+    <SearchBar searchQuery={searchQuery} onSearch={handleSearch} placeholder='Search by name, userId, or contact...' />
     <FormSideBar disabledFields={disabledFields} errors={errors} formData={formData} isSideBarOpen={toggleAdd} isSideBarClose={closToggle}  handleSubmit={handleSubmit} formFields={formFields} handleChange={handleChange} toggleText={toggleText}/>
-     <TableProp  isSideBarOpen={toggleAdd} handleArchive={handleArchive}  actionMode="archive" data={address} pagination={pagination} goToPage={goToPage} handleLimitChange={handleLimitChange} isSideBarOpen={toggleAdd} handleEdit={handleEdit} handleDelete={handleDelete}/>
+     <TableProp  isSideBarOpen={toggleAdd} handleArchive={handleArchive}  actionMode="archive" data={filteredData} pagination={pagination} goToPage={goToPage} handleLimitChange={handleLimitChange} isSideBarOpen={toggleAdd} handleEdit={handleEdit} handleDelete={handleDelete}/>
   <ToastContainer
   className="z-50 mt-20"
   position="top-right"

@@ -30,7 +30,7 @@ const page: React.FC = () => {
         const triggerRefresh = () => setRefreshKey(Date.now());
 
     return (
-        <div className="flex flex-col overflow-x-auto gap-4 p-4 ">
+        <div className="flex flex-col overflow-x-auto gap-4 p-2 ">
             <div className="flex mb-4 space-x-2">
                 {(['Member Login', 'Archive'] as Tab[]).map((tab) => (
                     <button

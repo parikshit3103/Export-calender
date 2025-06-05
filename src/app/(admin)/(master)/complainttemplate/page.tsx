@@ -5,6 +5,7 @@ import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import { db } from '@/lib/firebase';
 import { ref, onValue, push, update, remove, get } from 'firebase/database';
+import SearchBar from '@/components/searchBar/SearchBar';
 
 interface ComplaintTemplate {
   id?: string;
@@ -21,6 +22,9 @@ const ComplaintTemplate: React.FC = () => {
     complaint: '', 
     description: '' 
   });
+  const [searchQuery, setSearchQuery] = useState('');
+  const [allData, setAllData] = useState<ComplaintTemplate[]>([]);
+  const [filteredData, setFilteredData] = useState<ComplaintTemplate[]>([]);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [formAction, setFormAction] = useState<'Add' | 'Update' | 'Delete'>('Add');
   const [deleteId, setDeleteId] = useState<string | null>(null);
@@ -44,6 +48,9 @@ const ComplaintTemplate: React.FC = () => {
           id: key,
           ...data[key]
         }));
+
+            setAllData(templatesArray);
+      setFilteredData(templatesArray); // by default show al
 
         // Sort templates by ID in descending order to get the latest entry first
         const sortedTemplates = templatesArray.sort((a, b) => (b.id || '').localeCompare(a.id || ''));
@@ -71,6 +78,33 @@ const ComplaintTemplate: React.FC = () => {
       toast.error('Failed to fetch templates');
     }
   };
+
+  
+ const handleSearch = (query: string) => {
+  setSearchQuery(query);
+
+  if (query.trim() === '') {
+    setFilteredData(allData);
+    return;
+  }
+
+  const lower = query.toLowerCase();
+
+  const result = allData.filter((item) =>
+    item.complaint.toLowerCase().includes(lower) ||
+    item.description.toLowerCase().includes(lower)
+  );
+
+  setFilteredData(result);
+
+  // Reset pagination when search changes
+  setPagination((prev) => ({
+    ...prev,
+    currentPage: 1,
+    totalItems: result.length,
+    totalPages: Math.ceil(result.length / prev.limit),
+  }));
+};
 
   const resetPagination = (itemsPerPage: number = 10) => {
     setPagination({
@@ -219,6 +253,7 @@ const ComplaintTemplate: React.FC = () => {
 
   return (
     <div className="p-4 relative">
+       
       <div className={`flex-grow transition-all duration-500 ${isFormOpen ? 'mr-[25%]' : ''}`}>
         <div className="flex items-center justify-left mb-4 gap-2">
           <h2 className="text-xl font-bold">Complaint Templates</h2>
@@ -231,8 +266,8 @@ const ComplaintTemplate: React.FC = () => {
             alt="Add Template"
           />
         </div>
-
-        <div className="bg-white p-4 rounded shadow">
+        <SearchBar searchQuery={searchQuery} onSearch={handleSearch} placeholder='Search by complaint or description...' />
+        <div className="bg-white p-4 rounded shadow mt-6">
           <div className="flex justify-between items-center mb-3">
             <h3 className="text-lg font-semibold">All Templates</h3>
             <div className="flex items-center gap-2">
@@ -258,7 +293,7 @@ const ComplaintTemplate: React.FC = () => {
               </tr>
             </thead>
             <tbody>
-              {templates
+              {filteredData
                 .slice()
                 .sort((a, b) => (b.id || '').localeCompare(a.id || ''))
                 .map((template) => (

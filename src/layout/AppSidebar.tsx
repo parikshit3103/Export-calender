@@ -33,23 +33,13 @@ const navItems: NavItem[] = [
     name: "Dashboard",
     path: "/dashboard" } ,
   {
-    name: "Complaint Topic",
-    path: "/complainttopic" } ,
-  {
-    name: "Area Info",
-    path: "/areainfo" } ,
-  {
-    name: "Member Info",
-    path: "/memberinfo" } ,
-  {
-    name: "Know Your Member",
-    path: "/knowyourmember" } ,
-  {
-    name: "Know Your Area",
-    path: "/knowyourarea" } ,
-  {
-    name: "News And Ads",
-    path: "/newsandads" } ,
+    name: "Add Excel File",
+    path: "/addExcelfile" } ,
+
+    {
+      name: "Show ICS File",
+      path: "/showICSfile" } ,
+ 
     // subItems: [
     //   { name: "User Roles And Access", path: "/userroleaccess", pro: false },
     //   { name: "Address", path: "/address", pro: false },

@@ -24,6 +24,8 @@
     "flatpickr": "^4.6.13",
     "formidable": "^3.5.4",
     "ical.js": "^2.1.0",
+    "jspdf": "^3.0.1",
+    "jspdf-autotable": "^5.0.2",
     "lucide-react": "^0.503.0",
     "mongodb": "^6.16.0",
     "next": "15.2.3",

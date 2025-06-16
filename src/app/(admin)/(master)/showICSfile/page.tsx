@@ -68,6 +68,8 @@ const EditableCell = ({ value, onSave }: EditableCellProps) => {
 export default function ICSViewerPage() {
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [headers, setHeaders] = useState<string[]>([]);
+  const [visibleHeaders, setVisibleHeaders] = useState<string[]>([]);
+  const [showHeaderDropdown, setShowHeaderDropdown] = useState(false);
   const [history, setHistory] = useState<{ events: CalendarEvent[], headers: string[] }[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
   const [newHeaderName, setNewHeaderName] = useState('');
@@ -226,12 +228,12 @@ export default function ICSViewerPage() {
     setHistory(prevHistory => prevHistory.slice(0, -1));
   };
 
-  // Download functions
+  // Download functions (update to use visibleHeaders)
   const downloadExcel = () => {
-    const camelCaseHeaders = headers.map(toCamelCase); // Convert headers to camel case
+    const camelCaseHeaders = visibleHeaders.map(toCamelCase);
     const worksheetData = events.map(event =>
       Object.fromEntries(
-        camelCaseHeaders.map((header, index) => [header, event[headers[index]] || '-'])
+        camelCaseHeaders.map((header, index) => [header, event[visibleHeaders[index]] || '-'])
       )
     );
 
@@ -250,9 +252,9 @@ export default function ICSViewerPage() {
 
   const downloadPDF = () => {
     try {
-      const camelCaseHeaders = headers.map(toCamelCase); // Convert headers to camel case
+      const camelCaseHeaders = visibleHeaders.map(toCamelCase);
       const tableData = events.map(event =>
-        camelCaseHeaders.map((header, index) => event[headers[index]] || '-')
+        camelCaseHeaders.map((header, index) => event[visibleHeaders[index]] || '-')
       );
 
       // Add Consolidated Hour Summary as the last row
@@ -311,6 +313,11 @@ export default function ICSViewerPage() {
     return totalHours.toFixed(2);
   };
 
+  // Update visibleHeaders when headers change (default: all visible)
+  useEffect(() => {
+    setVisibleHeaders(headers);
+  }, [headers]);
+
   return (
     <div className="p-6 max-w-6xl mx-auto">
       <h1 className="text-2xl font-bold mb-4">ICS File Viewer & Editor</h1>
@@ -358,8 +365,52 @@ export default function ICSViewerPage() {
               </button>
             </div>
 
+            {/* Header Visibility Dropdown */}
+            <div className="relative">
+              {/* <button
+                onClick={() => setShowHeaderDropdown((prev) => !prev)}
+                className="bg-gray-200 text-gray-700 px-4 py-2 rounded"
+              >
+                Select Columns
+              </button> */}
+                <button
+                  onClick={() => setShowHeaderDropdown((prev) => !prev)}
+                  className="bg-gray-100 text-gray-700 px-5 py-2 rounded-lg font-medium hover:bg-gray-200 transition-all flex items-center gap-2 shadow-sm"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                    <path d="M5 4a1 1 0 011-1h8a1 1 0 110 2H6a1 1 0 01-1-1zm0 4a1 1 0 011-1h8a1 1 0 110 2H6a1 1 0 01-1-1zm0 4a1 1 0 011-1h8a1 1 0 110 2H6a1 1 0 01-1-1z" />
+                  </svg>
+                  Select Columns
+                </button>
+              {showHeaderDropdown && (
+                <div className="absolute z-10 mt-2 bg-white border rounded shadow-lg p-4 max-h-60 overflow-auto">
+                  {headers.map((header) => (
+                    <label key={header} className="flex items-center gap-2 mb-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={visibleHeaders.includes(header)}
+                        onChange={() => {
+                          setVisibleHeaders((prev) =>
+                            prev.includes(header)
+                              ? prev.filter((h) => h !== header)
+                              : [...prev, header]
+                          );
+                        }}
+                      />
+                      <span>{header}</span>
+                    </label>
+                  ))}
+                  <button
+                    className="mt-2 bg-blue-500 text-white px-2 py-1 rounded w-full"
+                    onClick={() => setShowHeaderDropdown(false)}
+                  >
+                    Done
+                  </button>
+                </div>
+              )}
+            </div>
+
             <div className="flex items-center gap-2 ml-auto">
-              {/* Undo button is conditionally rendered based on history */}
               {history.length > 0 && (
                 <button
                   onClick={handleUndo}
@@ -372,7 +423,6 @@ export default function ICSViewerPage() {
                 </button>
               )}
 
-              {/* Download Excel button */}
               <button
                 onClick={downloadExcel}
                 className="bg-purple-500 text-white px-4 py-2 rounded flex items-center gap-2"
@@ -383,7 +433,6 @@ export default function ICSViewerPage() {
                 </svg>
               </button>
 
-              {/* Download PDF button */}
               <button
                 onClick={downloadPDF}
                 className="bg-red-500 text-white px-4 py-2 rounded flex items-center gap-2"
@@ -401,7 +450,7 @@ export default function ICSViewerPage() {
               <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50">
                   <tr>
-                    {headers.map((header) => (
+                    {visibleHeaders.map((header) => (
                       <th
                         key={header}
                         scope="col"
@@ -427,7 +476,7 @@ export default function ICSViewerPage() {
                 <tbody className="bg-white divide-y divide-gray-200">
                   {currentEvents.map((event, rowIndex) => (
                     <tr key={rowIndex}>
-                      {headers.map((header) => (
+                      {visibleHeaders.map((header) => (
                         <EditableCell
                           key={`${rowIndex}-${header}`}
                           value={event[header] || ''}

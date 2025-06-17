@@ -39,12 +39,13 @@ export default function AddExcelPage() {
   };
 
   return (
-    <div className="p-6">
-      <h1 className="text-2xl font-bold mb-4">Upload Excel File</h1>
+    <div className="min-h-screen bg-gray-50 p-4 sm:p-6 lg:p-8">
+       <div className="max-w-full mx-auto sm:max-w-7xl">
+     <h1 className="text-2xl font-bold text-gray-800 mb-4 sm:text-3xl sm:mb-6">Upload Excel File</h1>
 
       <div className="mb-4">
-        <label className="block mb-2 text-sm font-medium text-gray-900">
-          Upload Excel File
+        <label className="block mb-2 text-sm font-medium text-gray-900"> 
+          Upload Excel File 
         </label>
         <input
           type="file"
@@ -58,6 +59,7 @@ export default function AddExcelPage() {
           hover:file:bg-blue-100"
         />
       </div>
+     
 
       {data.length > 0 && (
         <>
@@ -88,6 +90,7 @@ export default function AddExcelPage() {
           </button>
         </>
       )}
+    </div>
     </div>
   );
 }

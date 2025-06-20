@@ -29,8 +29,8 @@ export default function AdminLayout({
 
   return (
     <div className="min-h-screen xl:flex overflow-hidden">
-      <AppSidebar />
-      <Backdrop />
+       <AppSidebar />
+      {isMobileOpen && <Backdrop />}   
       <div
         className={`flex-1 transition-all duration-300 ease-in-out ${mainContentMargin}`}
       >

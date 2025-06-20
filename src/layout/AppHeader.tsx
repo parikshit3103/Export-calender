@@ -89,17 +89,17 @@ const AppHeader: React.FC = () => {
               width={154}
               height={32}
               className="dark:hidden"
-              src="./images/logo/logo2.svg"
+              src="/images/logo/Calendar logo.png"
               alt="Logo"
             />
             <Image
               width={154}
               height={32}
               className="hidden dark:block"
-              src="./images/logo/logo-dark.svg"
+              src="/images/logo/Calendar logo.png"
               alt="Logo"
             />
-          </Link>
+          </Link>   
 
           <button
             onClick={toggleApplicationMenu}

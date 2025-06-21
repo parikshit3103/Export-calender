@@ -11,60 +11,6 @@ type CalendarEvent = {
   [key: string]: any;
 };
 
-// type EditableCellProps = {
-//   value: any;
-//   onSave: (newValue: any) => void;
-// };
-
-// const EditableCell = ({ value, onSave }: EditableCellProps) => {
-//   const [isEditing, setIsEditing] = useState(false);
-//   const [inputValue, setInputValue] = useState(value);
-
-  // useEffect(() => {
-  //   setInputValue(value);
-  // }, [value]);
-
-  // const handleSave = () => {
-  //   onSave(inputValue);
-  //   setIsEditing(false);
-  // };
-
-//   const handleKeyDown = (e: React.KeyboardEvent) => {
-//     if (e.key === 'Enter') {
-//       handleSave();
-//     }
-//   };
-
-//   return (
-//     <td className="px-3 py-2 text-sm text-gray-700 border-b border-gray-100 sm:px-4 sm:py-3">
-//       {isEditing ? (
-//         <div className="flex items-center gap-2">
-//           <input
-//             type="text"
-//             value={inputValue}
-//             onChange={(e) => setInputValue(e.target.value)}
-//             onKeyDown={handleKeyDown}
-//             className="border border-gray-300 rounded-lg px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 w-full transition-all sm:px-3 sm:py-1"
-//             autoFocus
-//           />
-//           <button
-//             onClick={handleSave}
-//             className="bg-blue-600 text-white px-2 py-1 rounded-lg text-xs hover:bg-blue-700 transition-all sm:px-3 sm:text-sm"
-//           >
-//             Save
-//           </button>
-//         </div>
-//       ) : (
-//         <div 
-//           className="cursor-pointer hover:bg-gray-50 p-1 rounded-lg transition-all sm:p-2"
-//           onClick={() => setIsEditing(true)}
-//         >
-//           {value || <span className="text-gray-400">-</span>}
-//         </div>
-//       )}
-//     </td>
-//   );
-// };
 
 export default function ICSViewerPage() {
   const [events, setEvents] = useState<CalendarEvent[]>([]);
@@ -169,23 +115,15 @@ export default function ICSViewerPage() {
     reader.readAsText(file);
   };
 
-  // const handleCellEdit = (rowIndex: number, header: string, newValue: any) => {
+  // const handleAddRow = () => {
   //   setEvents(prevEvents => {
-  //     const updatedEvents = [...prevEvents];
-  //     updatedEvents[rowIndex][header] = newValue;
-  //     return updatedEvents;
+  //     const newRow: CalendarEvent = {};
+  //     headers.forEach(header => {
+  //       newRow[header] = '';
+  //     });
+  //     return [...prevEvents, newRow];
   //   });
   // };
-
-  const handleAddRow = () => {
-    setEvents(prevEvents => {
-      const newRow: CalendarEvent = {};
-      headers.forEach(header => {
-        newRow[header] = '';
-      });
-      return [...prevEvents, newRow];
-    });
-  };
 
   const handleDeleteRow = (rowIndex: number) => {
     setHistory(prevHistory => [...prevHistory, { events, headers }]);
@@ -196,18 +134,18 @@ export default function ICSViewerPage() {
     });
   };
 
-  const handleAddColumn = () => {
-    if (!newHeaderName.trim()) return;
+  // const handleAddColumn = () => {
+  //   if (!newHeaderName.trim()) return;
     
-    setHeaders(prev => [...prev, newHeaderName.trim()]);
-    setEvents(prevEvents => 
-      prevEvents.map(event => ({
-        ...event,
-        [newHeaderName.trim()]: ''
-      }))
-    );
-    setNewHeaderName('');
-  };
+  //   setHeaders(prev => [...prev, newHeaderName.trim()]);
+  //   setEvents(prevEvents => 
+  //     prevEvents.map(event => ({
+  //       ...event,
+  //       [newHeaderName.trim()]: ''
+  //     }))
+  //   );
+  //   setNewHeaderName('');
+  // };
 
   const handleDeleteColumn = (header: string) => {
     setHistory(prevHistory => [...prevHistory, { events, headers }]);
@@ -315,8 +253,8 @@ export default function ICSViewerPage() {
   }, [headers]);
 
   return (
-    <div className="min-h-screen bg-gray-50 p-4 sm:p-6 lg:p-8">
-      <div className="max-w-full mx-auto sm:max-w-7xl">
+    <div className="min-h-screen  w-[100vw] p-4 sm:p-6 lg:p-8 flex items-start justify-center">
+      <div className="w-full max-w-[90%]"> {/* Adjusted width */}
         <h1 className="text-2xl font-bold text-gray-800 mb-4 sm:text-3xl sm:mb-6">ICS File Viewer & Editor</h1>
 
         <div className="mb-6 sm:mb-8">
@@ -333,8 +271,8 @@ export default function ICSViewerPage() {
 
         {events.length > 0 && (
           <>
-            <div className="flex flex-col gap-3 mb-6 sm:flex-row sm:flex-wrap sm:gap-4 sm:mb-8">
-              <button
+            <div className="flex flex-col gap-3 mb-6 sm:flex-row sm:flex-wrap sm:gap-4 sm:mb-8 w-full">
+              {/* <button
                 onClick={handleAddRow}
                 className="bg-green-500 text-white px-4 py-2 rounded-lg font-medium hover:bg-green-600 transition-all flex items-center justify-center gap-2 shadow-sm sm:px-5"
               >
@@ -342,26 +280,26 @@ export default function ICSViewerPage() {
                   <path fillRule="evenodd" d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z" clipRule="evenodd" />
                 </svg>
                 Add New Row
-              </button>
+              </button> */}
 
-              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
+              {/* <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
                 <input
                   type="text"
                   value={newHeaderName}
                   onChange={(e) => setNewHeaderName(e.target.value)}
                   placeholder="New column name"
-                  className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 transition-all sm:px-4"
-                />
-                <button
-                  onClick={handleAddColumn}
-                  className="bg-blue-500 text-white px-4 py-2 rounded-lg font-medium hover:bg-blue-600 transition-all flex items-center justify-center gap-2 shadow-sm sm:px-5"
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                    <path fillRule="evenodd" d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z" clipRule="evenodd" />
-                </svg>
-                  Add Column
-                </button>
-              </div>
+                  className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 transition-all sm:px-4" */}
+                {/* // />
+                // <button */}
+                {/* //   onClick={handleAddColumn}
+                //   className="bg-blue-500 text-white px-4 py-2 rounded-lg font-medium hover:bg-blue-600 transition-all flex items-center justify-center gap-2 shadow-sm sm:px-5"
+                // >
+                //   <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                //     <path fillRule="evenodd" d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z" clipRule="evenodd" />
+                // </svg>
+                //   Add Column
+                // </button>
+              // </div> */}
 
               <div className="relative">
                 <button
@@ -437,7 +375,7 @@ export default function ICSViewerPage() {
               </div>
             </div>
 
-            <div className="bg-white rounded-xl shadow-lg overflow-hidden">
+            <div className="bg-white rounded-xl shadow-lg overflow-hidden w-full">
               <div className="overflow-x-auto">
                 <table className="w-full">
                   <thead className="bg-indigo-50">

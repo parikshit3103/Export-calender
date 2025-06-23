@@ -13,8 +13,8 @@ const DashBoard: React.FC = () => {
 
   return (
     <div className="w-full overflow-x-hidden"> {/* Prevent side scroll */}
-      <div className="flex flex-col items-center justify-start min-h-screen w-full px-4 py-8">
-        <div className="w-full max-w-5xl text-center space-y-10 fade-down">
+      <div className="flex flex-col items-center justify-start min-h-screen w-full px-4 py-20">
+        <div className="w-full max-w-5xl text-center space-y-10 fade-up">
           <h1 className="text-4xl sm:text-5xl font-extrabold text-[#184e93]">
             Welcome to <span className="text-blue-600">Calendar Export</span>
           </h1>

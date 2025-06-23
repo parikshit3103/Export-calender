@@ -115,16 +115,6 @@ export default function ICSViewerPage() {
     reader.readAsText(file);
   };
 
-  // const handleAddRow = () => {
-  //   setEvents(prevEvents => {
-  //     const newRow: CalendarEvent = {};
-  //     headers.forEach(header => {
-  //       newRow[header] = '';
-  //     });
-  //     return [...prevEvents, newRow];
-  //   });
-  // };
-
   const handleDeleteRow = (rowIndex: number) => {
     setHistory(prevHistory => [...prevHistory, { events, headers }]);
     setEvents(prevEvents => {
@@ -134,30 +124,7 @@ export default function ICSViewerPage() {
     });
   };
 
-  // const handleAddColumn = () => {
-  //   if (!newHeaderName.trim()) return;
-    
-  //   setHeaders(prev => [...prev, newHeaderName.trim()]);
-  //   setEvents(prevEvents => 
-  //     prevEvents.map(event => ({
-  //       ...event,
-  //       [newHeaderName.trim()]: ''
-  //     }))
-  //   );
-  //   setNewHeaderName('');
-  // };
-
-  const handleDeleteColumn = (header: string) => {
-    setHistory(prevHistory => [...prevHistory, { events, headers }]);
-    setHeaders(prev => prev.filter(h => h !== header));
-    setEvents(prevEvents => 
-      prevEvents.map(event => {
-        const newEvent = { ...event };
-        delete newEvent[header];
-        return newEvent;
-      })
-    );
-  };
+ 
 
   const handleUndo = () => {
     if (history.length === 0) return;
@@ -272,34 +239,7 @@ export default function ICSViewerPage() {
         {events.length > 0 && (
           <>
             <div className="flex flex-col gap-3 mb-6 sm:flex-row sm:flex-wrap sm:gap-4 sm:mb-8 w-full">
-              {/* <button
-                onClick={handleAddRow}
-                className="bg-green-500 text-white px-4 py-2 rounded-lg font-medium hover:bg-green-600 transition-all flex items-center justify-center gap-2 shadow-sm sm:px-5"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                  <path fillRule="evenodd" d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z" clipRule="evenodd" />
-                </svg>
-                Add New Row
-              </button> */}
-
-              {/* <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
-                <input
-                  type="text"
-                  value={newHeaderName}
-                  onChange={(e) => setNewHeaderName(e.target.value)}
-                  placeholder="New column name"
-                  className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 transition-all sm:px-4" */}
-                {/* // />
-                // <button */}
-                {/* //   onClick={handleAddColumn}
-                //   className="bg-blue-500 text-white px-4 py-2 rounded-lg font-medium hover:bg-blue-600 transition-all flex items-center justify-center gap-2 shadow-sm sm:px-5"
-                // >
-                //   <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                //     <path fillRule="evenodd" d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z" clipRule="evenodd" />
-                // </svg>
-                //   Add Column
-                // </button>
-              // </div> */}
+           
 
               <div className="relative">
                 <button
@@ -388,13 +328,7 @@ export default function ICSViewerPage() {
                         >
                           <div className="flex items-center justify-between">
                             <span>{toCamelCase(header)}</span>
-                            <button
-                              onClick={() => handleDeleteColumn(header)}
-                              className="opacity-0 group-hover:opacity-100 text-red-500 hover:text-red-600 ml-2 transition-all"
-                              title="Delete column"
-                            >
-                              ×
-                            </button>
+                           
                           </div>
                         </th>
                       ))}

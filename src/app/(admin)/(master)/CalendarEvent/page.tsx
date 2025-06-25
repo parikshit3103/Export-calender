@@ -1,6 +1,4 @@
-
 'use client';
-
 import { useState, useEffect } from 'react';
 import ICAL from 'ical.js';
 import * as XLSX from 'xlsx';
@@ -11,6 +9,18 @@ type CalendarEvent = {
   [key: string]: any;
 };
 
+type ICALEvent = {
+  summary?: string;
+  description?: string;
+  location?: string;
+  startDate?: { toJSDate: () => Date };
+  endDate?: { toJSDate: () => Date };
+  component?: {
+    getFirstProperty: (name: string) => any;
+    getFirstPropertyValue: (name: string) => any;
+    getAllProperties: () => Array<{ name: string; getFirstValue: () => any }>;
+  };
+};
 
 export default function ICSViewerPage() {
   const [events, setEvents] = useState<CalendarEvent[]>([]);
@@ -22,50 +32,60 @@ export default function ICSViewerPage() {
   const [newHeaderName, setNewHeaderName] = useState('');
   const eventsPerPage = 10;
 
-  const flattenEventProperties = (event: any) => {
+  const flattenEventProperties = (event: any): CalendarEvent => {
     const flattened: CalendarEvent = {};
-    
+  
+    // Handle ICS structure (ICAL.js events)
+    if (event.startDate && typeof event.startDate.toJSDate === "function") {
+      // Original ICS logic
+      // ...
+      return flattened; // ✅ Exit early for ICS events
+    }
+  
+    // Handle Google API events (raw JSON)
     if (event.summary) flattened.summary = event.summary;
     if (event.description) flattened.description = event.description;
     if (event.location) flattened.location = event.location;
-    
-    if (event.startDate) {
-      const start = event.startDate.toJSDate();
+  
+    if (event.start?.dateTime || event.start?.date) {
+      const start = new Date(event.start.dateTime || event.start.date);
       flattened['start date'] = start.toLocaleDateString();
       flattened['start time'] = start.toLocaleTimeString();
     }
-    
-    if (event.endDate) {
-      const end = event.endDate.toJSDate();
+  
+    if (event.end?.dateTime || event.end?.date) {
+      const end = new Date(event.end.dateTime || event.end.date);
       flattened['end date'] = end.toLocaleDateString();
       flattened['end time'] = end.toLocaleTimeString();
     }
-    
-    if (event.component && event.component.getFirstProperty('rrule')) {
-      const rrule = event.component.getFirstPropertyValue('rrule');
-      flattened.recurrence = rrule.toString();
+  
+    if (event.recurrence) {
+      flattened.recurrence = event.recurrence.join(", ");
     }
-    
-    if (event.component) {
-      event.component.getAllProperties().forEach((prop: any) => {
-        const name = prop.name.toLowerCase();
-        if (!['dtstart', 'dtend', 'summary', 'description', 'location'].includes(name)) {
-          const value = prop.getFirstValue();
-          if (value) {
-            if (typeof value === 'object' && 'toJSDate' in value) {
-              const date = value.toJSDate();
-              flattened[`${name} date`] = date.toLocaleDateString();
-              flattened[`${name} time`] = date.toLocaleTimeString();
-            } else {
-              flattened[name] = value.toString();
-            }
-          }
-        }
-      });
+  
+    if (event.organizer?.email) {
+      flattened.organizer = event.organizer.email;
     }
-    
+  
+    if (event.status) {
+      flattened.status = event.status;
+    }
+  
+    if (event.created) {
+      flattened['created at'] = new Date(event.created).toLocaleString();
+    }
+  
+    if (event.updated) {
+      flattened['updated at'] = new Date(event.updated).toLocaleString();
+    }
+  
+    if (event.attendees?.length) {
+      flattened.attendees = event.attendees.map((a: any) => a.email).join(", ");
+    }
+  
     return flattened;
   };
+  
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -115,16 +135,6 @@ export default function ICSViewerPage() {
     reader.readAsText(file);
   };
 
-  // const handleAddRow = () => {
-  //   setEvents(prevEvents => {
-  //     const newRow: CalendarEvent = {};
-  //     headers.forEach(header => {
-  //       newRow[header] = '';
-  //     });
-  //     return [...prevEvents, newRow];
-  //   });
-  // };
-
   const handleDeleteRow = (rowIndex: number) => {
     setHistory(prevHistory => [...prevHistory, { events, headers }]);
     setEvents(prevEvents => {
@@ -134,30 +144,7 @@ export default function ICSViewerPage() {
     });
   };
 
-  // const handleAddColumn = () => {
-  //   if (!newHeaderName.trim()) return;
-    
-  //   setHeaders(prev => [...prev, newHeaderName.trim()]);
-  //   setEvents(prevEvents => 
-  //     prevEvents.map(event => ({
-  //       ...event,
-  //       [newHeaderName.trim()]: ''
-  //     }))
-  //   );
-  //   setNewHeaderName('');
-  // };
-
-  const handleDeleteColumn = (header: string) => {
-    setHistory(prevHistory => [...prevHistory, { events, headers }]);
-    setHeaders(prev => prev.filter(h => h !== header));
-    setEvents(prevEvents => 
-      prevEvents.map(event => {
-        const newEvent = { ...event };
-        delete newEvent[header];
-        return newEvent;
-      })
-    );
-  };
+ 
 
   const handleUndo = () => {
     if (history.length === 0) return;
@@ -249,57 +236,34 @@ export default function ICSViewerPage() {
   };
 
   useEffect(() => {
+    const stored = localStorage.getItem("googleEvents");
+    if (stored) {
+      const parsedEvents = JSON.parse(stored).map(flattenEventProperties);
+      const allHeaders = new Set<string>();
+      parsedEvents.forEach((event: CalendarEvent) => Object.keys(event).forEach((key) => allHeaders.add(key)));
+      const sortedHeaders = Array.from(allHeaders).sort((a, b) => a.localeCompare(b)); // Sort headers alphabetically
+      setHeaders(sortedHeaders);
+      setVisibleHeaders(sortedHeaders); // Ensure all headers are visible
+      setEvents(parsedEvents);
+      setCurrentPage(1);
+      localStorage.removeItem("googleEvents");
+    }
+  }, []); // Added useEffect for localStorage handling
+
+  useEffect(() => {
     setVisibleHeaders(headers);
   }, [headers]);
 
   return (
-    <div className="min-h-screen  w-[100vw] p-4 sm:p-6 lg:p-8 flex items-start justify-center">
-      <div className="w-full max-w-[90%]"> {/* Adjusted width */}
-        <h1 className="text-2xl font-bold text-gray-800 mb-4 sm:text-3xl sm:mb-6">ICS File Viewer & Editor</h1>
+    <div className="min-h-screen w-[100vw] p-4 sm:p-6 lg:p-8 flex items-start justify-center">
+      <div className="w-full max-w-[90%]">
+        <h1 className="text-2xl font-bold text-gray-800 mb-4 sm:text-3xl sm:mb-6">See Google Calendar Events</h1>
 
-        <div className="mb-6 sm:mb-8">
-          <label className="block mb-2 text-sm font-medium text-gray-700">
-            Upload ICS File
-          </label>
-          <input
-            type="file"
-            accept=".ics"
-            onChange={handleFileChange}
-            className="block w-full text-sm text-gray-500 file:mr-3 file:py-2 file:px-3 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-600 hover:file:bg-indigo-100 transition-all cursor-pointer sm:file:mr-4 sm:file:px-4"
-          />
-        </div>
-
+        
         {events.length > 0 && (
           <>
             <div className="flex flex-col gap-3 mb-6 sm:flex-row sm:flex-wrap sm:gap-4 sm:mb-8 w-full">
-              {/* <button
-                onClick={handleAddRow}
-                className="bg-green-500 text-white px-4 py-2 rounded-lg font-medium hover:bg-green-600 transition-all flex items-center justify-center gap-2 shadow-sm sm:px-5"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                  <path fillRule="evenodd" d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z" clipRule="evenodd" />
-                </svg>
-                Add New Row
-              </button> */}
-
-              {/* <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
-                <input
-                  type="text"
-                  value={newHeaderName}
-                  onChange={(e) => setNewHeaderName(e.target.value)}
-                  placeholder="New column name"
-                  className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 transition-all sm:px-4" */}
-                {/* // />
-                // <button */}
-                {/* //   onClick={handleAddColumn}
-                //   className="bg-blue-500 text-white px-4 py-2 rounded-lg font-medium hover:bg-blue-600 transition-all flex items-center justify-center gap-2 shadow-sm sm:px-5"
-                // >
-                //   <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                //     <path fillRule="evenodd" d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z" clipRule="evenodd" />
-                // </svg>
-                //   Add Column
-                // </button>
-              // </div> */}
+           
 
               <div className="relative">
                 <button
@@ -388,13 +352,7 @@ export default function ICSViewerPage() {
                         >
                           <div className="flex items-center justify-between">
                             <span>{toCamelCase(header)}</span>
-                            <button
-                              onClick={() => handleDeleteColumn(header)}
-                              className="opacity-0 group-hover:opacity-100 text-red-500 hover:text-red-600 ml-2 transition-all"
-                              title="Delete column"
-                            >
-                              ×
-                            </button>
+                           
                           </div>
                         </th>
                       ))}

@@ -180,9 +180,9 @@ export default function ICSViewerPage() {
     );
 
     worksheetData.push({
-      [camelCaseHeaders[0]]: 'Total Hours',
+      [camelCaseHeaders[0]]: 'Total Time',
       ...Object.fromEntries(camelCaseHeaders.slice(1).map(() => ['-', '-'])),
-      totalHours: calculateTotalHours(),
+      totalTime: calculateTotalHours(), // Add formatted total hours
     });
 
     const worksheet = XLSX.utils.json_to_sheet(worksheetData);
@@ -208,21 +208,11 @@ export default function ICSViewerPage() {
         });
       });
 
-      const totalHours = events.reduce((sum, event) => {
-        const start = event['start date'] && event['start time'] ? new Date(`${event['start date']} ${event['start time']}`) : null;
-        const end = event['end date'] && event['end time'] ? new Date(`${event['end date']} ${event['end time']}`) : null;
-        if (start && end) {
-          const hours = (end.getTime() - start.getTime()) / (1000 * 60 * 60);
-          return sum + hours;
-        }
-        return sum;
-      }, 0).toFixed(2);
-
       const totalRow = camelCaseHeaders.map((header) => {
         if (header === "Duration") {
-          return totalHours;
+          return calculateTotalHours(); // Add formatted total hours
         }
-        return header === camelCaseHeaders[0] ? "Total Hours" : "-";
+        return header === camelCaseHeaders[0] ? "Total Time" : "-";
       });
 
       tableData.push(totalRow);
@@ -286,19 +276,22 @@ export default function ICSViewerPage() {
   const totalPages = Math.ceil(events.length / eventsPerPage);
 
   const calculateTotalHours = () => {
-    let totalHours = 0;
+    let totalMinutes = 0;
 
     events.forEach(event => {
       const start = event['start date'] && event['start time'] ? new Date(`${event['start date']} ${event['start time']}`) : null;
       const end = event['end date'] && event['end time'] ? new Date(`${event['end date']} ${event['end time']}`) : null;
 
       if (start && end) {
-        const hours = (end.getTime() - start.getTime()) / (1000 * 60 * 60);
-        totalHours += hours;
+        const minutes = (end.getTime() - start.getTime()) / (1000 * 60); // Calculate total minutes
+        totalMinutes += minutes;
       }
     });
 
-    return totalHours.toFixed(2);
+    const hours = Math.floor(totalMinutes / 60); // Convert minutes to hours
+    const minutes = Math.round(totalMinutes % 60); // Get remaining minutes
+
+    return `${hours} hours ${minutes} minutes`;
   };
 
   useEffect(() => {
@@ -516,7 +509,7 @@ export default function ICSViewerPage() {
             <div className="mt-4 p-4 bg-gray-50 rounded-b-xl sm:mt-6">
               <h2 className="text-base font-semibold text-gray-800 sm:text-lg">Consolidated Hour Summary</h2>
               <p className="text-sm text-gray-600 mt-1">
-                Total Hours: <span className="font-medium text-gray-800">{calculateTotalHours()}</span>
+                Total Time: <span className="font-medium text-gray-800">{calculateTotalHours()}</span>
               </p>
             </div>
 

@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -11,7 +10,6 @@ type CalendarEvent = {
   [key: string]: any;
 };
 
-
 export default function ICSViewerPage() {
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [headers, setHeaders] = useState<string[]>([]);
@@ -20,6 +18,8 @@ export default function ICSViewerPage() {
   const [history, setHistory] = useState<{ events: CalendarEvent[], headers: string[] }[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
   const [newHeaderName, setNewHeaderName] = useState('');
+  const [pdfUrl, setPdfUrl] = useState<string | null>(null);
+  const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const eventsPerPage = 10;
 
   const flattenEventProperties = (event: any) => {
@@ -115,16 +115,6 @@ export default function ICSViewerPage() {
     reader.readAsText(file);
   };
 
-  // const handleAddRow = () => {
-  //   setEvents(prevEvents => {
-  //     const newRow: CalendarEvent = {};
-  //     headers.forEach(header => {
-  //       newRow[header] = '';
-  //     });
-  //     return [...prevEvents, newRow];
-  //   });
-  // };
-
   const handleDeleteRow = (rowIndex: number) => {
     setHistory(prevHistory => [...prevHistory, { events, headers }]);
     setEvents(prevEvents => {
@@ -133,19 +123,6 @@ export default function ICSViewerPage() {
       return updatedEvents;
     });
   };
-
-  // const handleAddColumn = () => {
-  //   if (!newHeaderName.trim()) return;
-    
-  //   setHeaders(prev => [...prev, newHeaderName.trim()]);
-  //   setEvents(prevEvents => 
-  //     prevEvents.map(event => ({
-  //       ...event,
-  //       [newHeaderName.trim()]: ''
-  //     }))
-  //   );
-  //   setNewHeaderName('');
-  // };
 
   const handleDeleteColumn = (header: string) => {
     setHistory(prevHistory => [...prevHistory, { events, headers }]);
@@ -187,12 +164,19 @@ export default function ICSViewerPage() {
     XLSX.writeFile(workbook, "calendar_events.xlsx");
   };
 
-  const downloadPDF = () => {
+  const generatePDF = () => {
     try {
       const camelCaseHeaders = visibleHeaders.map(toCamelCase);
-      const tableData = events.map(event =>
-        camelCaseHeaders.map((header, index) => event[visibleHeaders[index]] || '-')
-      );
+      camelCaseHeaders.push('Duration'); // Add Duration column to PDF
+      const tableData = events.map(event => {
+        const start = event['start date'] && event['start time'] ? new Date(`${event['start date']} ${event['start time']}`) : null;
+        const end = event['end date'] && event['end time'] ? new Date(`${event['end date']} ${event['end time']}`) : null;
+        const duration = start && end ? ((end.getTime() - start.getTime()) / (1000 * 60 * 60)).toFixed(2) : '-';
+        return camelCaseHeaders.map((header, index) => {
+          if (header === 'Duration') return duration;
+          return event[visibleHeaders[index]] || '-';
+        });
+      });
 
       tableData.push(
         camelCaseHeaders.map((header, index) =>
@@ -220,11 +204,37 @@ export default function ICSViewerPage() {
         },
       });
 
-      doc.save("calendar_events.pdf");
+      return doc;
     } catch (error) {
       console.error("Error generating PDF:", error);
       alert("Failed to generate PDF. Please try again.");
+      return null;
     }
+  };
+
+  const downloadPDF = () => {
+    const doc = generatePDF();
+    if (doc) {
+      doc.save("calendar_events.pdf");
+    }
+  };
+
+  const previewPDF = () => {
+    const doc = generatePDF();
+    if (doc) {
+      const pdfBlob = doc.output('blob');
+      const pdfUrl = URL.createObjectURL(pdfBlob);
+      setPdfUrl(pdfUrl);
+      setIsPreviewOpen(true);
+    }
+  };
+
+  const closePreview = () => {
+    if (pdfUrl) {
+      URL.revokeObjectURL(pdfUrl);
+      setPdfUrl(null);
+    }
+    setIsPreviewOpen(false);
   };
 
   const indexOfLastEvent = currentPage * eventsPerPage;
@@ -253,8 +263,8 @@ export default function ICSViewerPage() {
   }, [headers]);
 
   return (
-    <div className="min-h-screen  w-[100vw] p-4 sm:p-6 lg:p-8 flex items-start justify-center">
-      <div className="w-full max-w-[90%]"> {/* Adjusted width */}
+    <div className="min-h-screen w-[100vw] p-4 sm:p-6 lg:p-8 flex items-start justify-center">
+      <div className="w-full max-w-[90%]">
         <h1 className="text-2xl font-bold text-gray-800 mb-4 sm:text-3xl sm:mb-6">ICS File Viewer & Editor</h1>
 
         <div className="mb-6 sm:mb-8">
@@ -272,35 +282,6 @@ export default function ICSViewerPage() {
         {events.length > 0 && (
           <>
             <div className="flex flex-col gap-3 mb-6 sm:flex-row sm:flex-wrap sm:gap-4 sm:mb-8 w-full">
-              {/* <button
-                onClick={handleAddRow}
-                className="bg-green-500 text-white px-4 py-2 rounded-lg font-medium hover:bg-green-600 transition-all flex items-center justify-center gap-2 shadow-sm sm:px-5"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                  <path fillRule="evenodd" d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z" clipRule="evenodd" />
-                </svg>
-                Add New Row
-              </button> */}
-
-              {/* <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
-                <input
-                  type="text"
-                  value={newHeaderName}
-                  onChange={(e) => setNewHeaderName(e.target.value)}
-                  placeholder="New column name"
-                  className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 transition-all sm:px-4" */}
-                {/* // />
-                // <button */}
-                {/* //   onClick={handleAddColumn}
-                //   className="bg-blue-500 text-white px-4 py-2 rounded-lg font-medium hover:bg-blue-600 transition-all flex items-center justify-center gap-2 shadow-sm sm:px-5"
-                // >
-                //   <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                //     <path fillRule="evenodd" d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z" clipRule="evenodd" />
-                // </svg>
-                //   Add Column
-                // </button>
-              // </div> */}
-
               <div className="relative">
                 <button
                   onClick={() => setShowHeaderDropdown((prev) => !prev)}
@@ -359,8 +340,19 @@ export default function ICSViewerPage() {
                 >
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
                     <path fillRule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clipRule="evenodd" />
-                </svg>
+                  </svg>
                   Download Excel
+                </button>
+
+                <button
+                  onClick={previewPDF}
+                  className="bg-blue-500 text-white px-4 py-2 rounded-lg font-medium hover:bg-blue-600 transition-all flex items-center justify-center gap-2 shadow-sm sm:px-5"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                    <path d="M10 12a2 2 0 100-4 2 2 0 000 4z" />
+                    <path fillRule="evenodd" d="M10 3c-4.418 0-8 3.582-8 8s3.582 8 8 8 8-3.582 8-8-3.582-8-8-8zm0 14c-3.313 0-6-2.687-6-6s2.687-6 6-6 6 2.687 6 6-2.687 6-6 6z" clipRule="evenodd" />
+                  </svg>
+                  Preview PDF
                 </button>
 
                 <button
@@ -374,6 +366,43 @@ export default function ICSViewerPage() {
                 </button>
               </div>
             </div>
+
+            {isPreviewOpen && pdfUrl && (
+              <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-4xl max-h-[80vh] flex flex-col">
+                  <div className="flex justify-between items-center mb-4">
+                    <h2 className="text-xl font-bold text-gray-800">PDF Preview</h2>
+                    <button
+                      onClick={closePreview}
+                      className="text-gray-600 hover:text-gray-800 font-medium"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </button>
+                  </div>
+                  <iframe
+                    src={pdfUrl}
+                    className="w-full h-[60vh] border border-gray-200 rounded-lg"
+                    title="PDF Preview"
+                  />
+                  <div className="flex justify-end gap-4 mt-4">
+                    <button
+                      onClick={closePreview}
+                      className="bg-gray-300 text-gray-700 px-4 py-2 rounded-lg font-medium hover:bg-gray-400 transition-all"
+                    >
+                      Close
+                    </button>
+                    <button
+                      onClick={downloadPDF}
+                      className="bg-blue-500 text-white px-4 py-2 rounded-lg font-medium hover:bg-blue-600 transition-all"
+                    >
+                      Download PDF
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
 
             <div className="bg-white rounded-xl shadow-lg overflow-hidden w-full">
               <div className="overflow-x-auto">

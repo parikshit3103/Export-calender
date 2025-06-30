@@ -14,7 +14,11 @@ const DashBoard: React.FC = () => {
   };
 
   const handleSignIn = () => {
-    if (!session) {
+    if (session) {
+      // Redirect to CalendarEvent page if already signed in
+      router.push('/CalendarEvent');
+    } else {
+      // Sign in with Google if not signed in
       signIn("google", { callbackUrl: "/CalendarEvent" });
     }
   };
@@ -59,9 +63,8 @@ const DashBoard: React.FC = () => {
             <button
               onClick={handleSignIn}
               className={`${
-                session ? "bg-gray-400 cursor-not-allowed" : "bg-blue-600 hover:bg-blue-700"
+                session ? "bg-gray-400 cursor-pointer" : "bg-blue-600 hover:bg-blue-700"
               } text-white font-bold text-xl py-4 px-8 sm:px-16 rounded-2xl shadow-lg transition-transform hover:scale-105 duration-300`}
-              disabled={!!session}
             >
               {session ? "You are already signed in" : "Sign in with Google"}
             </button>
